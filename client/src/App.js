@@ -232,6 +232,8 @@ const App = () => {
     setUser(null);
     setActivePortal(null);
     setShowLogin(false);
+    setShowSignup(false);
+    setDesiredProduct(null);
     window.history.replaceState({}, '', '/');
   };
 
