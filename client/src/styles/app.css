@@ -1,0 +1,137 @@
+:root {
+  --bg: #f7fafc;
+}
+
+body {
+  background: var(--bg);
+}
+
+.product-picker {
+  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 38%);
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.product-card {
+  all: unset;
+  cursor: pointer;
+  padding: 1.25rem;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 16px 46px -24px rgba(15, 23, 42, 0.35);
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 52px -26px rgba(15, 23, 42, 0.45);
+  border-color: #cbd5e1;
+}
+
+.product-card.active {
+  border-color: #2f80ed;
+  box-shadow: 0 18px 56px -22px rgba(47, 128, 237, 0.35);
+}
+
+.product-card .product-cta {
+  color: #2f80ed;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.product-card .product-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #fff;
+}
+
+.product-card.emerald .product-icon { background: linear-gradient(135deg, #0f9f6e, #2f9e44); }
+.product-card.teal .product-icon { background: linear-gradient(135deg, #0f766e, #14b8a6); }
+.product-card.indigo .product-icon { background: linear-gradient(135deg, #3730a3, #6366f1); }
+.product-card.amber .product-icon { background: linear-gradient(135deg, #c2410c, #f59e0b); }
+.product-card.sky .product-icon { background: linear-gradient(135deg, #0ea5e9, #3b82f6); }
+
+.portal-landing {
+  background: #fff;
+  border: 1px solid #dce7f5;
+  border-radius: 14px;
+  box-shadow: 0 12px 36px -18px rgba(15, 23, 42, 0.35);
+}
+
+.portal-btn {
+  color: #fff;
+  font-weight: 600;
+  border: none;
+  width: 100%;
+}
+
+.portal-btn.doctor { background: #2f9e44; }
+.portal-btn.nurse { background: #1c7c3d; }
+.portal-btn.patient { background: #2f80ed; }
+.portal-btn.admin { background: #d77848; }
+
+.portal-btn:hover { filter: brightness(0.95); }
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.card-plain {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 6px 18px -12px rgba(0,0,0,0.25);
+}
+
+.chat-launch {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+}
+
+.intake-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: none;
+  background: linear-gradient(135deg, #0f9f6e, #2f9e44);
+  box-shadow: 0 10px 24px -12px rgba(15, 159, 110, 0.6);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 12px 16px;
+  border-radius: 12px;
+}
+
+.intake-btn:hover,
+.intake-btn:focus {
+  background: linear-gradient(135deg, #0c8f62, #27863a);
+  filter: none;
+}
+
+.intake-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 8px 20px -12px rgba(12, 143, 98, 0.6);
+}
+
+.intake-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-weight: 800;
+  line-height: 1;
+}
