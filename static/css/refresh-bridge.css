@@ -1,0 +1,115 @@
+/* Bridge layer: map legacy custom properties to refresh tokens */
+:is([data-theme="refresh"],[data-theme="telehealth-final"]) {
+  /* Palette remap */
+  --warm-white: var(--color-surface-white);
+  --warm-black: var(--color-surface-black);
+  --cream: var(--color-surface-base);
+  --warm-gray-50: var(--color-surface-base);
+  --warm-gray-100: var(--color-surface-elevated);
+  --warm-gray-200: var(--color-border-subtle);
+  --warm-gray-300: var(--color-surface-grey-40);
+  --warm-gray-400: var(--color-surface-grey-60);
+  --warm-gray-500: var(--color-text-muted);
+  --warm-gray-600: var(--color-surface-grey80);
+  --warm-gray-700: var(--color-text-secondary);
+  --warm-gray-800: var(--color-surface-inverse);
+  --warm-gray-900: var(--color-surface-inverse);
+
+  --sage-50: var(--color-surface-base);
+  --sage-100: var(--color-surface-subtle);
+  --sage-200: var(--color-surface-subtle);
+  --sage-300: var(--color-accent-primary-hover);
+  --sage-400: var(--color-accent-primary-base);
+  --sage-500: var(--color-surface-green);
+  --sage-600: var(--color-accent-primary-base);
+  --sage-700: var(--color-accent-primary-active);
+  --sage-800: var(--color-accent-primary-active);
+  --sage-900: var(--color-surface-inverse);
+
+  --coral-50: var(--color-surface-warning);
+  --coral-100: var(--color-surface-warning);
+  --coral-200: var(--color-danger-contrast);
+  --coral-300: var(--color-danger-base);
+  --coral-400: var(--color-danger-base);
+  --coral-500: var(--color-danger-hover);
+  --coral-600: var(--color-danger-active);
+  --coral-700: var(--color-danger-active);
+  --coral-800: var(--color-danger-active);
+  --coral-900: var(--color-surface-black);
+
+  --soft-blue-50: var(--color-surface-base);
+  --soft-blue-100: var(--color-surface-subtle);
+  --soft-blue-200: var(--color-surface-subtle);
+  --soft-blue-300: var(--color-surface-blue);
+  --soft-blue-400: var(--color-surface-blue);
+  --soft-blue-500: var(--color-accent-primary-active);
+  --soft-blue-600: var(--color-surface-blue);
+  --soft-blue-700: var(--color-surface-inverse);
+  --soft-blue-800: var(--color-surface-inverse);
+  --soft-blue-900: var(--color-surface-inverse);
+
+  /* Semantic surface/text/border mapping */
+  --bg-primary: var(--color-surface-base);
+  --bg-secondary: var(--color-surface-elevated);
+  --bg-tertiary: var(--color-surface-subtle);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+  --text-light: var(--color-surface-grey-60);
+  --border-color: var(--color-border-subtle);
+  --border-light: var(--color-border-subtle);
+  --border-medium: var(--color-surface-grey-40);
+
+  --status-stable: var(--color-surface-green);
+  --status-monitoring: var(--color-surface-blue);
+  --status-critical: var(--color-danger-base);
+  --status-urgent: var(--color-danger-hover);
+  --status-normal: var(--color-accent-primary-base);
+  --status-pending: var(--color-accent-primary-hover);
+  --status-overdue: var(--color-danger-active);
+
+  --hover-bg: var(--color-surface-elevated);
+  --focus-ring: var(--color-border-focus);
+  --active-bg: var(--color-accent-primary-hover);
+
+  /* Shadows */
+  --shadow-xs: var(--shadow-sm);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-warm: var(--shadow-md);
+
+  /* Gradients */
+  --primary-gradient: linear-gradient(135deg, var(--color-accent-primary-base) 0%, var(--color-accent-primary-active) 100%);
+  --gradient-sage: var(--primary-gradient);
+  --gradient-coral: linear-gradient(135deg, var(--color-danger-base) 0%, var(--color-danger-active) 100%);
+  --gradient-warm: linear-gradient(135deg, var(--color-surface-base) 0%, var(--color-surface-elevated) 100%);
+
+  /* Brand helpers */
+  --primary-color: var(--color-accent-primary-base);
+  --primary-color-dark: var(--color-accent-primary-active);
+  --primary-color-light: var(--color-accent-primary-hover);
+  --primary-text: var(--color-text-primary);
+
+  /* Spacing scale (tokens win) */
+  --space-0: var(--space-0);
+  --space-1: var(--space-1);
+  --space-2: var(--space-2);
+  --space-3: var(--space-3);
+  --space-4: var(--space-4);
+  --space-5: var(--space-5);
+  --space-6: var(--space-6);
+  --space-8: var(--space-8);
+  --space-10: 80px;
+  --space-12: 96px;
+  --space-16: 128px;
+
+  --space-xs: var(--space-1);
+  --space-sm: var(--space-2);
+  --space-md: var(--space-3);
+  --space-lg: var(--space-4);
+
+  /* Typography hooks */
+  --font-sans: var(--font-family-sans);
+  --font-heading: var(--font-family-sans);
+}

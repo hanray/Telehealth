@@ -59,6 +59,7 @@ const resolvePortalFromProduct = (product, role) => {
   if (product === 'admin') return 'admin';
   if (product === 'telemedicine') return role === 'patient' ? 'patient' : 'doctor';
   if (product === 'telehealth' || product === 'homecare') return role === 'patient' ? 'patient' : 'nurse';
+  if (product === 'myhealth') return 'patient';
   return role || null;
 };
 

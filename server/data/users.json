@@ -1,0 +1,22 @@
+{
+  "users": [
+    {
+      "id": "usr_mjyjc68r_gxie",
+      "email": "hdjorgee@gmail.com",
+      "role": "admin",
+      "password_hash": "$2a$10$oTwl23RTFdqV.gtPLDMau.73OGKUETJDJdvcngLNk6GuTMf3O4/3e",
+      "org_id": null,
+      "patientId": null
+    },
+    {
+      "id": "usr_mk037j2z_bcp0",
+      "email": "hdorgy@gmail.com",
+      "role": "patient",
+      "name": "Henry",
+      "product": "telehealth",
+      "password_hash": "$2a$10$F7pdEixNv.KclXVTR4BkiepqCanp.DNF0ku8.IP3ALU036dhGIjkG",
+      "org_id": null,
+      "patientId": "patient-001"
+    }
+  ]
+}

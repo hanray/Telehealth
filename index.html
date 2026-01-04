@@ -1,1 +1,49 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"/><link rel="icon" href="/favicon.ico"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="theme-color" content="#000000"/><meta name="description" content="Web site created using create-react-app"/><link rel="apple-touch-icon" href="/logo192.png"/><link rel="manifest" href="/manifest.json"/><title>React App</title><script defer="defer" src="/static/js/main.7db98ea8.js"></script><link href="/static/css/main.e353eaf7.css" rel="stylesheet"></head><body><noscript>You need to enable JavaScript to run this app.</noscript><div id="root"></div></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<link rel="icon" href="/favicon.ico" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<meta name="theme-color" content="#000000" />
+	<meta name="description" content="Web site created using create-react-app" />
+	<link rel="apple-touch-icon" href="/logo192.png" />
+	<link rel="manifest" href="/manifest.json" />
+	<title>React App</title>
+	<script>
+		(function(){
+			if(window.__authFetchShimInstalled) return;
+			window.__authFetchShimInstalled = true;
+			const loc = window.location;
+			const defaultApi = (loc.hostname === 'localhost' && loc.port === '3000')
+				? 'http://localhost:5000'
+				: loc.origin;
+			window.__API_BASE = window.__API_BASE || defaultApi;
+			const original = window.fetch.bind(window);
+			window.fetch = function(input, init){
+				const next = Object.assign({ credentials: 'include' }, init || {});
+				next.headers = Object.assign({}, init && init.headers || {}, { 'X-Requested-With': 'fetch' });
+				return original(input, next);
+			};
+		})();
+	</script>
+	<script defer="defer" src="/static/js/main.7db98ea8.js"></script>
+	<script defer="defer" src="/static/js/auth-overlay.js"></script>
+	<link href="/static/css/main.e353eaf7.css" rel="stylesheet" />
+	<link href="/static/css/tokens.css" rel="stylesheet" />
+	<link href="/static/css/components.css" rel="stylesheet" />
+	<link href="/static/css/refresh-bridge.css" rel="stylesheet" />
+	<link href="/static/css/refresh-overrides.css" rel="stylesheet" />
+	<link href="/static/css/telehealth-overrides.css" rel="stylesheet" />
+</head>
+<body data-theme="telehealth-final">
+	<noscript>You need to enable JavaScript to run this app.</noscript>
+	<div id="root"></div>
+	<script>
+		(function(){
+			const root = document.body;
+			root.setAttribute('data-theme','telehealth-final');
+			if(window.localStorage) localStorage.setItem('telehealth-theme','telehealth-final');
+		})();
+	</script>
+</body>
+</html>

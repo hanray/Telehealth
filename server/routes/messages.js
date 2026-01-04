@@ -2,6 +2,10 @@
 const express = require('express');
 const router = express.Router();
 const Message = require('../models/Message');
+const { requireAuth } = require('../middleware/auth');
+
+// All messaging endpoints require an authenticated user
+router.use(requireAuth);
 
 // Mock providers data (in production, fetch from User collection)
 const MOCK_PROVIDERS = [
@@ -25,6 +29,9 @@ router.get('/providers', async (req, res) => {
 router.get('/conversations/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
+    if (req.user.role !== 'admin' && req.user.id !== userId) {
+      return res.status(403).json({ error: 'Cannot view conversations for another user', context: 'Demo / MVP auth' });
+    }
     
     // Get unique conversations
     const messages = await Message.find({
@@ -69,6 +76,10 @@ router.get('/conversations/:userId', async (req, res) => {
 router.get('/messages/:userId/:recipientId', async (req, res) => {
   try {
     const { userId, recipientId } = req.params;
+
+    if (req.user.role !== 'admin' && req.user.id !== userId) {
+      return res.status(403).json({ error: 'Cannot view messages for another user', context: 'Demo / MVP auth' });
+    }
     
     const messages = await Message.find({
       $or: [
@@ -92,7 +103,27 @@ router.get('/messages/:userId/:recipientId', async (req, res) => {
 // Send a new message
 router.post('/send', async (req, res) => {
   try {
-    const messageData = req.body;
+    const incoming = req.body || {};
+
+    if (req.user.role !== 'admin' && incoming.senderId && incoming.senderId !== req.user.id) {
+      return res.status(403).json({ error: 'Sender mismatch with session user', context: 'Demo / MVP auth' });
+    }
+
+    const messageData = {
+      senderId: req.user.id,
+      senderName: incoming.senderName || req.user.email,
+      senderRole: req.user.role,
+      recipientId: incoming.recipientId,
+      recipientName: incoming.recipientName,
+      recipientRole: incoming.recipientRole,
+      message: incoming.message,
+      messageType: incoming.messageType || 'text',
+      priority: incoming.priority || 'normal',
+    };
+
+    if (!messageData.recipientId || !messageData.recipientName || !messageData.recipientRole || !messageData.message) {
+      return res.status(400).json({ error: 'recipientId, recipientName, recipientRole, and message are required', context: 'Demo / MVP auth' });
+    }
     
     // Generate conversation ID
     const conversationId = [messageData.senderId, messageData.recipientId].sort().join('-');
@@ -135,6 +166,10 @@ router.post('/send', async (req, res) => {
 router.put('/read/:userId/:senderId', async (req, res) => {
   try {
     const { userId, senderId } = req.params;
+
+    if (req.user.role !== 'admin' && req.user.id !== userId) {
+      return res.status(403).json({ error: 'Cannot mark messages for another user', context: 'Demo / MVP auth' });
+    }
     
     const result = await Message.updateMany(
       { senderId: senderId, recipientId: userId, read: false },
@@ -151,6 +186,10 @@ router.put('/read/:userId/:senderId', async (req, res) => {
 router.get('/unread/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
+
+    if (req.user.role !== 'admin' && req.user.id !== userId) {
+      return res.status(403).json({ error: 'Cannot view unread count for another user', context: 'Demo / MVP auth' });
+    }
     
     const count = await Message.countDocuments({
       recipientId: userId,
