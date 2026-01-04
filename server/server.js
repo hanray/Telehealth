@@ -7,37 +7,88 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const dns = require('dns');
 const https = require('https');
+const session = require('express-session');
+const cookieParser = require('cookie-parser');
 
 dns.setDefaultResultOrder?.('ipv4first');
 
 const PORT = Number(process.env.PORT) || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const CLIENT_URLS = (process.env.CORS_ORIGIN || process.env.CLIENT_URL || 'http://localhost:3000')
+const CLIENT_URLS = (process.env.CORS_ORIGIN || process.env.CLIENT_URL || 'http://localhost:3000,http://localhost:3001')
   .split(',').map(s => s.trim()).filter(Boolean);
 const MONGODB_URI = process.env.MONGODB_URI;
+const HAS_MONGO = !!MONGODB_URI;
+const SESSION_SECRET = process.env.SESSION_SECRET || 'telehealth-demo-secret';
+const TRUST_PROXY = process.env.TRUST_PROXY;
+
+const describeMongoUri = (uri) => {
+  if (!uri) return null;
+  try {
+    const u = new URL(uri);
+    return {
+      protocol: u.protocol.replace(/:$/, ''),
+      host: u.hostname,
+      db: u.pathname.replace(/^\//, '') || '(none)',
+    };
+  } catch (err) {
+    return { parseError: err?.message || 'invalid URI' };
+  }
+};
+const mongoInfo = describeMongoUri(MONGODB_URI);
+
+const normalizeOrigin = (value = '') => value.replace(/\/$/, '');
+const ALLOWED_ORIGINS = new Set(CLIENT_URLS.map(normalizeOrigin));
 
 console.log('ENV check:', {
   NODE_ENV,
   CLIENT_URLS,
-  hasMongo: !!MONGODB_URI
+  hasMongo: HAS_MONGO,
+  mongoInfo,
 });
 
-if (!MONGODB_URI) {
-  console.error('❌ MONGODB_URI is not set');
-  process.exit(1);
+if (!HAS_MONGO) {
+  console.warn('⚠️  MONGODB_URI is not set; Mongo-backed features (messages) are disabled.');
 }
 
 const app = express();
+const trustProxyValue = (() => {
+  if (TRUST_PROXY === undefined) return 1;
+  if (TRUST_PROXY === 'false' || TRUST_PROXY === '0') return false;
+  if (TRUST_PROXY === 'true') return true;
+  return TRUST_PROXY;
+})();
+app.set('trust proxy', trustProxyValue);
 
 /* ----------- Middleware ----------- */
 app.use(
   cors({
-    origin: (origin, cb) => (!origin || CLIENT_URLS.includes(origin) ? cb(null, true) : cb(new Error(`Not allowed by CORS: ${origin}`))),
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      const normalized = normalizeOrigin(origin);
+      if (ALLOWED_ORIGINS.has(normalized)) return cb(null, true);
+      if (normalized.startsWith('http://localhost:')) return cb(null, true);
+      return cb(new Error(`Not allowed by CORS: ${origin}`));
+    },
     credentials: true,
   })
 );
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(
+  session({
+    name: 'telehealth.sid',
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: false, // Demo / MVP auth: not using HTTPS in local/dev
+      maxAge: 1000 * 60 * 60 * 4, // 4 hours
+    },
+  })
+);
 
 /* ----------- Enhanced DB Connect with pooling & auto-reconnect ----------- */
 mongoose.set('strictQuery', true);
@@ -67,6 +118,7 @@ const connectWithRetry = async (retryCount = 0) => {
     console.log(`📊 Pool size: min=${mongoOptions.minPoolSize}, max=${mongoOptions.maxPoolSize}`);
   } catch (err) {
     console.error('❌ MongoDB connection error:', err?.message || err);
+    if (err?.stack) console.error(err.stack);
     
     if (retryCount < maxRetries - 1) {
       const delay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10s
@@ -74,39 +126,42 @@ const connectWithRetry = async (retryCount = 0) => {
       setTimeout(() => connectWithRetry(retryCount + 1), delay);
     } else {
       console.error('❌ Failed to connect after maximum retries. Check IP whitelist in Atlas & MONGODB_URI credentials.');
-      process.exit(1);
     }
   }
 };
 
 // Initial connection
-connectWithRetry();
+if (HAS_MONGO) {
+  connectWithRetry();
+}
 
 // MongoDB connection event handlers for auto-reconnection
-mongoose.connection.on('connected', () => {
-  console.log('📗 Mongoose connected to MongoDB');
-});
+if (HAS_MONGO) {
+  mongoose.connection.on('connected', () => {
+    console.log('📗 Mongoose connected to MongoDB');
+  });
 
-mongoose.connection.on('error', (err) => {
-  console.error('📕 Mongoose connection error:', err);
-});
+  mongoose.connection.on('error', (err) => {
+    console.error('📕 Mongoose connection error:', err);
+  });
 
-mongoose.connection.on('disconnected', () => {
-  console.log('📙 Mongoose disconnected from MongoDB');
-  // Attempt to reconnect after a disconnection
-  setTimeout(() => {
-    console.log('🔄 Attempting to reconnect to MongoDB...');
-    connectWithRetry();
-  }, 5000);
-});
+  mongoose.connection.on('disconnected', () => {
+    console.log('📙 Mongoose disconnected from MongoDB');
+    // Attempt to reconnect after a disconnection
+    setTimeout(() => {
+      console.log('🔄 Attempting to reconnect to MongoDB...');
+      connectWithRetry();
+    }, 5000);
+  });
 
-// Log connection pool stats periodically (optional - comment out in production)
-if (NODE_ENV !== 'production') {
-  setInterval(() => {
-    const { readyState } = mongoose.connection;
-    const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
-    console.log(`📊 DB State: ${states[readyState] || 'unknown'}`);
-  }, 30000); // Every 30 seconds
+  // Log connection pool stats periodically (optional - comment out in production)
+  if (NODE_ENV !== 'production') {
+    setInterval(() => {
+      const { readyState } = mongoose.connection;
+      const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+      console.log(`📊 DB State: ${states[readyState] || 'unknown'}`);
+    }, 30000); // Every 30 seconds
+  }
 }
 
 /* ----------- Routes ----------- */
@@ -115,24 +170,35 @@ app.get('/', (_req, res) => {
 });
 
 app.get('/api/health', (_req, res) => {
-  const dbState = ['disconnected','connected','connecting','disconnecting'][mongoose.connection.readyState] || 'unknown';
+  const dbState = HAS_MONGO
+    ? ['disconnected','connected','connecting','disconnecting'][mongoose.connection.readyState] || 'unknown'
+    : 'disabled';
+  const status = HAS_MONGO ? (dbState === 'connected' ? 'OK' : 'DEGRADED') : 'DISABLED';
   
   res.json({
-    status: dbState === 'connected' ? 'OK' : 'DEGRADED',
+    status,
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     env: NODE_ENV,
     dbState,
-    poolInfo: {
+    poolInfo: HAS_MONGO ? {
       maxPoolSize: mongoOptions.maxPoolSize,
       minPoolSize: mongoOptions.minPoolSize,
       heartbeatFrequency: mongoOptions.heartbeatFrequencyMS,
-    }
+    } : null,
+    mongoConfigured: HAS_MONGO,
   });
 });
 
 /* Middleware to check DB connection before processing requests */
 const checkDbConnection = (req, res, next) => {
+  if (!HAS_MONGO) {
+    return res.status(503).json({
+      error: 'MongoDB not configured; messages API is disabled for this environment.',
+      dbState: 'disabled',
+    });
+  }
+
   if (mongoose.connection.readyState !== 1) {
     console.error('❌ Database not connected, current state:', mongoose.connection.readyState);
     return res.status(503).json({ 
@@ -143,20 +209,39 @@ const checkDbConnection = (req, res, next) => {
   next();
 };
 
-/* Mount messages with DB check middleware */
-try {
-  const messageRoutes = require('./routes/messages');
+// API route mounts (Demo / MVP auth)
+const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
+const appointmentRoutes = require('./routes/appointments');
+const userRoutes = require('./routes/users');
+const messageRoutes = require('./routes/messages');
+
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api', userRoutes); // exposes /api/patients/:id
+
+if (HAS_MONGO) {
   app.use('/api/messages', checkDbConnection, messageRoutes);
-  console.log('✅ Message routes loaded');
-} catch (e) {
-  console.log('ℹ️  /routes/messages not found, skipping…');
+} else {
+  app.use('/api/messages', (_req, res) => {
+    return res.status(503).json({
+      error: 'Messages API disabled: MongoDB is not configured for this environment.',
+      context: 'Demo / MVP auth',
+    });
+  });
 }
+console.log('✅ Core routes loaded (auth, admin, appointments, patients, messages)');
 
 /* ----------- Start ----------- */
 const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 Environment: ${NODE_ENV}`);
   console.log(`🌐 CORS allowed: ${CLIENT_URLS.join(', ') || '(none)'}`);
+});
+server.on('error', (err) => {
+  console.error('❌ Server listen error:', err?.message || err);
+  if (err?.stack) console.error(err.stack);
 });
 
 /* ----------- Graceful shutdown ----------- */
