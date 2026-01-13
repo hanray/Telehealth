@@ -18,6 +18,60 @@ import ProductPicker, { PRODUCT_CATALOG } from './components/ProductPicker';
 import { getClinicData, updateClinicData, getClinicConfig } from './config/dataStore';
 import { createAppointment } from './utils/appointmentUtils';
 
+const SUPPORTED_LANGUAGES = [
+  { code: 'en-US', label: 'English (US)', flag: '🇺🇸' },
+  { code: 'en-GB', label: 'English (UK)', flag: '🇬🇧' },
+  { code: 'en-CA', label: 'English (Canada)', flag: '🇨🇦' },
+  { code: 'en-AU', label: 'English (Australia)', flag: '🇦🇺' },
+  { code: 'es-ES', label: 'Spanish (Spain)', flag: '🇪🇸' },
+  { code: 'es-MX', label: 'Spanish (Mexico)', flag: '🇲🇽' },
+  { code: 'fr-FR', label: 'French (France)', flag: '🇫🇷' },
+  { code: 'fr-CA', label: 'French (Canada)', flag: '🇨🇦' },
+  { code: 'de-DE', label: 'German', flag: '🇩🇪' },
+  { code: 'pt-BR', label: 'Portuguese (Brazil)', flag: '🇧🇷' },
+  { code: 'pt-PT', label: 'Portuguese (Portugal)', flag: '🇵🇹' },
+  { code: 'ar-SA', label: 'Arabic', flag: '🇸🇦' },
+  { code: 'zh-CN', label: 'Chinese (Simplified)', flag: '🇨🇳' },
+  { code: 'zh-TW', label: 'Chinese (Traditional)', flag: '🇹🇼' },
+  { code: 'ja-JP', label: 'Japanese', flag: '🇯🇵' },
+  { code: 'ko-KR', label: 'Korean', flag: '🇰🇷' },
+  { code: 'hi-IN', label: 'Hindi', flag: '🇮🇳' },
+  { code: 'bn-BD', label: 'Bengali', flag: '🇧🇩' },
+  { code: 'id-ID', label: 'Indonesian', flag: '🇮🇩' },
+  { code: 'vi-VN', label: 'Vietnamese', flag: '🇻🇳' },
+  { code: 'th-TH', label: 'Thai', flag: '🇹🇭' },
+  { code: 'ru-RU', label: 'Russian', flag: '🇷🇺' },
+  { code: 'tr-TR', label: 'Turkish', flag: '🇹🇷' },
+  { code: 'it-IT', label: 'Italian', flag: '🇮🇹' },
+  { code: 'nl-NL', label: 'Dutch', flag: '🇳🇱' },
+  { code: 'sv-SE', label: 'Swedish', flag: '🇸🇪' },
+  { code: 'pl-PL', label: 'Polish', flag: '🇵🇱' },
+  { code: 'he-IL', label: 'Hebrew', flag: '🇮🇱' },
+];
+
+const DEFAULT_LANGUAGE = 'en-US';
+
+const normalizeLanguage = (code) => {
+  const match = SUPPORTED_LANGUAGES.find((lang) => lang.code === code);
+  if (match) return match.code;
+  const short = (code || '').split('-')[0];
+  const partial = SUPPORTED_LANGUAGES.find((lang) => lang.code.startsWith(short));
+  return partial ? partial.code : DEFAULT_LANGUAGE;
+};
+
+const SUPPORTED_COUNTRIES = [
+  { code: 'US', label: 'United States' },
+  { code: 'CA', label: 'Canada' },
+  { code: 'GB', label: 'United Kingdom' },
+  { code: 'AU', label: 'Australia' },
+  { code: 'IN', label: 'India' },
+  { code: 'SG', label: 'Singapore' },
+  { code: 'PH', label: 'Philippines' },
+  { code: 'BR', label: 'Brazil' },
+  { code: 'MX', label: 'Mexico' },
+  { code: 'ZA', label: 'South Africa' },
+];
+
 const API_BASE =
   process.env.NODE_ENV === 'production'
     ? window.location.origin
@@ -83,6 +137,26 @@ const App = () => {
   });
   const [showLogin, setShowLogin] = useState(() => getInitialLoginView() || getInitialSignupView() || Boolean(getInitialProductFromPath()));
   const [showSignup, setShowSignup] = useState(() => getInitialSignupView());
+  const [selectedRole, setSelectedRole] = useState('patient');
+  const [customRole, setCustomRole] = useState('');
+  const [selectedLanguage, setSelectedLanguage] = useState(() => {
+    if (typeof window === 'undefined') return DEFAULT_LANGUAGE;
+    try {
+      const stored = localStorage.getItem('language');
+      if (stored) return normalizeLanguage(stored);
+      return normalizeLanguage(navigator.language || DEFAULT_LANGUAGE);
+    } catch (err) {
+      return DEFAULT_LANGUAGE;
+    }
+  });
+  const [signupCountry, setSignupCountry] = useState(() => {
+    if (typeof window === 'undefined') return 'US';
+    try {
+      return localStorage.getItem('signupCountry') || 'US';
+    } catch (err) {
+      return 'US';
+    }
+  });
 
   const [clinicData, setClinicData] = useState(() => getClinicData());
   const [clinicConfig, setClinicConfig] = useState(() => getClinicConfig());
@@ -147,6 +221,20 @@ const App = () => {
     setQuickActionMessage('');
   }, [activePortal]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('language', selectedLanguage || 'en');
+      localStorage.setItem('signupCountry', signupCountry || 'US');
+    } catch (err) {
+      // ignore persistence errors
+    }
+    if (typeof document !== 'undefined') {
+      const langCode = selectedLanguage || DEFAULT_LANGUAGE;
+      document.documentElement.lang = langCode;
+    }
+  }, [selectedLanguage, signupCountry]);
+
   const refreshStore = () => {
     setClinicData(getClinicData());
     setClinicConfig(getClinicConfig());
@@ -193,13 +281,27 @@ const App = () => {
     const email = form.get('email');
     const password = form.get('password');
     const role = form.get('role');
+    const customRoleValue = (form.get('customRole') || '').toString().trim();
+    const country = (form.get('country') || signupCountry || 'US').toString();
+    if (role === 'other' && !customRoleValue) {
+      setAuthError('Please enter a role name when choosing Other.');
+      return;
+    }
     const productChoice = form.get('product') || desiredProduct || '';
     try {
       setAuthError('');
       setLoadingUser(true);
       const data = await fetchJson('/api/auth/signup', {
         method: 'POST',
-        body: JSON.stringify({ name, email, password, role, product: productChoice || null }),
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          role,
+          customRole: customRoleValue || null,
+          country,
+          product: productChoice || null,
+        }),
       });
       setUser(data.user);
       const targetProduct = productChoice || desiredProduct || (data.user?.role === 'admin' ? 'admin' : null);
@@ -234,6 +336,9 @@ const App = () => {
     setShowLogin(false);
     setShowSignup(false);
     setDesiredProduct(null);
+    setSelectedRole('patient');
+    setCustomRole('');
+    setSignupCountry('US');
     window.history.replaceState({}, '', '/');
   };
 
@@ -468,6 +573,9 @@ const App = () => {
         onOpenSettings={() => setShowSettings(true)}
         onLogin={() => { setShowSignup(false); setShowLogin(true); window.history.replaceState({}, '', '/login'); }}
         showLoginAction={!user}
+        languages={SUPPORTED_LANGUAGES}
+        selectedLanguage={selectedLanguage}
+        onLanguageChange={setSelectedLanguage}
       />
 
       {clinicConfig.banner && (
@@ -505,6 +613,9 @@ const App = () => {
                         setShowLogin(false);
                         setShowSignup(false);
                         setActivePortal(null);
+                        setSelectedRole('patient');
+                        setCustomRole('');
+                        setSignupCountry('US');
                         window.history.replaceState({}, '', '/');
                       }}
                     >
@@ -550,11 +661,49 @@ const App = () => {
                       </Form.Group>
                       <Form.Group className="mb-3">
                         <Form.Label>Role</Form.Label>
-                        <Form.Select name="role" defaultValue="patient" required>
+                        <Form.Select
+                          name="role"
+                          value={selectedRole}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setSelectedRole(value);
+                            if (value !== 'other') setCustomRole('');
+                          }}
+                          required
+                        >
                           <option value="patient">Patient</option>
                           <option value="nurse">Nurse</option>
                           <option value="doctor">Doctor</option>
                           <option value="admin">Admin (limited to 3)</option>
+                          <option value="other">Other (enter a role)</option>
+                        </Form.Select>
+                      </Form.Group>
+                      {selectedRole === 'other' && (
+                        <Form.Group className="mb-3">
+                          <Form.Label>Custom role</Form.Label>
+                          <Form.Control
+                            name="customRole"
+                            type="text"
+                            placeholder="e.g., Care Coordinator"
+                            value={customRole}
+                            onChange={(e) => setCustomRole(e.target.value)}
+                            required
+                          />
+                        </Form.Group>
+                      )}
+                      <Form.Group className="mb-3">
+                        <Form.Label>Country</Form.Label>
+                        <Form.Select
+                          name="country"
+                          value={signupCountry}
+                          onChange={(e) => setSignupCountry(e.target.value)}
+                          required
+                        >
+                          {SUPPORTED_COUNTRIES.map((country) => (
+                            <option key={country.code} value={country.code}>
+                              {country.label}
+                            </option>
+                          ))}
                         </Form.Select>
                       </Form.Group>
                       <Form.Group className="mb-3">
@@ -579,12 +728,32 @@ const App = () => {
 
                   <div className="mt-3 text-center">
                     {!showSignup && (
-                      <Button variant="link" onClick={() => { setShowSignup(true); setShowLogin(true); window.history.replaceState({}, '', '/signup'); }}>
+                          <Button
+                            variant="link"
+                            onClick={() => {
+                              setShowSignup(true);
+                              setShowLogin(true);
+                              setSelectedRole('patient');
+                              setCustomRole('');
+                              setSignupCountry('US');
+                              window.history.replaceState({}, '', '/signup');
+                            }}
+                          >
                         Need an account? Create one
                       </Button>
                     )}
                     {showSignup && (
-                      <Button variant="link" onClick={() => { setShowSignup(false); setShowLogin(true); window.history.replaceState({}, '', '/login'); }}>
+                          <Button
+                            variant="link"
+                            onClick={() => {
+                              setShowSignup(false);
+                              setShowLogin(true);
+                              setSelectedRole('patient');
+                              setCustomRole('');
+                              setSignupCountry('US');
+                              window.history.replaceState({}, '', '/login');
+                            }}
+                          >
                         Already have an account? Sign in
                       </Button>
                     )}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navbar, Container, Nav, Badge, Button } from 'react-bootstrap';
+import { Navbar, Container, Nav, Badge, Button, Form } from 'react-bootstrap';
 
 const Navigation = ({
   user,
@@ -8,6 +8,9 @@ const Navigation = ({
   onOpenSettings,
   onLogin,
   showLoginAction,
+  languages = [],
+  selectedLanguage,
+  onLanguageChange,
 }) => (
   <Navbar bg="light" expand="md" className="mb-3 border-bottom">
     <Container fluid>
@@ -19,6 +22,21 @@ const Navigation = ({
           {user?.email && <span className="text-muted small">{user.email}</span>}
         </Nav>
         <div className="d-flex gap-2 align-items-center">
+          {languages.length > 0 && (
+            <Form.Select
+              size="sm"
+              aria-label="Language selector"
+              style={{ width: 190 }}
+              value={selectedLanguage}
+              onChange={(e) => onLanguageChange?.(e.target.value)}
+            >
+              {languages.map((lang) => (
+                <option key={lang.code} value={lang.code}>
+                  {lang.flag ? `${lang.flag} ${lang.label}` : lang.label}
+                </option>
+              ))}
+            </Form.Select>
+          )}
           {showLoginAction && !user && (
             <Button variant="primary" size="sm" onClick={onLogin}>
               Login

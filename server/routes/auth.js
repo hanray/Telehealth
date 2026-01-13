@@ -6,29 +6,58 @@ const { requireAuth } = require('../middleware/auth');
 const { findByEmail, addUser, nextId, allUsers } = require('../utils/userStore');
 
 const ALLOWED_ROLES = ['patient', 'doctor', 'nurse', 'admin'];
+const SUPPORTED_COUNTRIES = ['US', 'CA', 'GB', 'AU', 'IN', 'SG', 'PH', 'BR', 'MX', 'ZA'];
 const DEMO_LABEL = 'Demo / MVP auth';
 
 const handleSignup = async (req, res) => {
 	try {
-		const { email, password, role, org_id, patientId, patient_id, name, product } = req.body || {};
+		const { email, password, role, customRole, org_id, patientId, patient_id, name, product, country } = req.body || {};
 
-		if (!email || !password || !role) {
-			return res.status(400).json({ error: 'email, password, and role are required', context: DEMO_LABEL });
+		if (!email || !password || (!role && !customRole)) {
+			return res.status(400).json({ error: 'email, password, and a role (or custom role) are required', context: DEMO_LABEL });
 		}
-		if (!ALLOWED_ROLES.includes(role)) {
-			return res.status(400).json({ error: 'Invalid role', allowed: ALLOWED_ROLES, context: DEMO_LABEL });
+
+		const roleInput = (role || '').trim();
+		const customRoleInput = (customRole || '').toString().trim();
+		let resolvedRole = null;
+		if (ALLOWED_ROLES.includes(roleInput)) {
+			resolvedRole = roleInput;
+		} else if (roleInput === 'other' && customRoleInput) {
+			resolvedRole = customRoleInput;
+		} else if (!roleInput && customRoleInput) {
+			resolvedRole = customRoleInput;
+		} else if (customRoleInput) {
+			resolvedRole = customRoleInput;
+		}
+
+		if (!resolvedRole) {
+			return res.status(400).json({ error: 'Please provide a valid role', allowed: [...ALLOWED_ROLES, 'custom'], context: DEMO_LABEL });
+		}
+
+		if (!ALLOWED_ROLES.includes(resolvedRole) && resolvedRole.length < 3) {
+			return res.status(400).json({ error: 'Custom role must be at least 3 characters', context: DEMO_LABEL });
+		}
+
+		if (!ALLOWED_ROLES.includes(resolvedRole) && resolvedRole.length > 64) {
+			return res.status(400).json({ error: 'Custom role is too long (max 64 characters)', context: DEMO_LABEL });
+		}
+
+		const countryInput = (country || '').toString().trim().toUpperCase();
+		const resolvedCountry = countryInput || 'US';
+		if (countryInput && !SUPPORTED_COUNTRIES.includes(resolvedCountry)) {
+			return res.status(400).json({ error: 'Unsupported country', allowed: SUPPORTED_COUNTRIES, context: DEMO_LABEL });
 		}
 		if (password.length < 6) {
 			return res.status(400).json({ error: 'Password must be at least 6 characters', context: DEMO_LABEL });
 		}
 		const existingUsers = await allUsers();
 		const adminCount = existingUsers.filter((u) => u.role === 'admin').length;
-		if (role === 'admin' && adminCount >= 3) {
+		if (resolvedRole === 'admin' && adminCount >= 3) {
 			return res.status(403).json({ error: 'Admin slots are limited (max 3)', context: DEMO_LABEL });
 		}
 
 		let patient_id_value = null;
-		if (role === 'patient') {
+		if (resolvedRole === 'patient') {
 			const provided = patientId || patient_id || null;
 			if (provided && typeof provided === 'string') {
 				patient_id_value = provided.trim();
@@ -47,12 +76,13 @@ const handleSignup = async (req, res) => {
 		const user = {
 			id: nextId(),
 			email: email.toLowerCase().trim(),
-			role,
+			role: resolvedRole,
 			name: (name || '').trim() || null,
 			product: product || null,
 			password_hash,
 			org_id: org_id || null,
 			patientId: patient_id_value,
+			country: resolvedCountry,
 		};
 
 		await addUser(user);
