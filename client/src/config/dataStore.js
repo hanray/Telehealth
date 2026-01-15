@@ -1,5 +1,5 @@
 // Bump key to force-refresh seeded demo data (medications, labs, etc.)
-const DATA_KEY = 'telehealth.clinicData.v2';
+const DATA_KEY = 'telehealth.clinicData.v5';
 const CONFIG_KEY = 'telehealth.config.v1';
 
 const defaultConfig = {
@@ -14,14 +14,87 @@ const defaultConfig = {
   },
 };
 
+const seedPharmacies = [
+  { id: 'pharm1', name: 'City Pharmacy', address: '123 Main St', phone: '+1-555-1111', active: true, updatedAt: new Date().toISOString() },
+  { id: 'pharm2', name: 'Community Pharmacy', address: '45 Elm Ave', phone: '+1-555-2222', active: true, updatedAt: new Date().toISOString() },
+  { id: 'pharm3', name: 'Downtown Pharmacy', address: '77 Market Rd', phone: '+1-555-3333', active: true, updatedAt: new Date().toISOString() },
+];
+
+const seedPlans = [
+  { id: 'plan_basic', name: 'Basic', price: 20, currency: 'CAD', interval: 'month', active: true },
+  { id: 'plan_plus', name: 'Plus', price: 40, currency: 'CAD', interval: 'month', active: true },
+];
+
 const defaultData = {
+  pharmacies: seedPharmacies,
+  plans: seedPlans,
+  subscriptions: [],
+  transactions: [],
+  notifications: [],
+  homecareTasks: [],
+  // Cases / encounters (telehealth workflow state)
+  cases: [
+    {
+      caseId: 'case_patient-001_001',
+      patientId: 'patient-001',
+      createdByUserId: 'nurse1',
+      createdAt: new Date().toISOString(),
+      assignedProviders: [],
+      assignmentRequests: [],
+      escalations: [],
+      status: 'triage',
+      title: 'Call back regarding dizziness',
+      severity: 'high',
+      triageStatus: 'open',
+      specialistRequested: false,
+    },
+    {
+      caseId: 'case_patient-002_001',
+      patientId: 'patient-002',
+      createdByUserId: 'nurse1',
+      createdAt: new Date().toISOString(),
+      assignedProviders: [],
+      assignmentRequests: [],
+      escalations: [],
+      status: 'triage',
+      title: 'Schedule follow-up for labs',
+      severity: 'medium',
+      triageStatus: 'open',
+      specialistRequested: true,
+      specialistRole: 'specialist',
+    },
+  ],
+  drugList: [
+    { id: 'rx-atorvastatin-20', name: 'Atorvastatin', strength: '20 mg', route: 'PO', frequency: 'daily', duration: '30 days' },
+    { id: 'rx-lisinopril-10', name: 'Lisinopril', strength: '10 mg', route: 'PO', frequency: 'daily', duration: '30 days' },
+    { id: 'rx-amlodipine-5', name: 'Amlodipine', strength: '5 mg', route: 'PO', frequency: 'daily', duration: '30 days' },
+    { id: 'rx-metformin-500', name: 'Metformin', strength: '500 mg', route: 'PO', frequency: 'BID with meals', duration: '90 days' },
+    { id: 'rx-empagliflozin-10', name: 'Empagliflozin', strength: '10 mg', route: 'PO', frequency: 'daily', duration: '90 days' },
+    { id: 'rx-insulin-glargine-10', name: 'Insulin Glargine', strength: '10 units', route: 'SC', frequency: 'bedtime', duration: '30 days' },
+    { id: 'rx-cephalexin-500', name: 'Cephalexin', strength: '500 mg', route: 'PO', frequency: 'QID', duration: '7 days' },
+    { id: 'rx-amoxicillin-500', name: 'Amoxicillin', strength: '500 mg', route: 'PO', frequency: 'TID', duration: '7 days' },
+    { id: 'rx-azithro-250', name: 'Azithromycin', strength: '250 mg', route: 'PO', frequency: '500 mg day 1 then 250 mg daily x4', duration: '5 days' },
+    { id: 'rx-ibuprofen-400', name: 'Ibuprofen', strength: '400 mg', route: 'PO', frequency: 'q6h PRN pain', duration: '5 days' },
+    { id: 'rx-acetaminophen-500', name: 'Acetaminophen', strength: '500 mg', route: 'PO', frequency: 'q6h PRN fever', duration: '5 days' },
+    { id: 'rx-ondansetron-4', name: 'Ondansetron', strength: '4 mg', route: 'PO', frequency: 'q8h PRN nausea', duration: '5 days' },
+    { id: 'rx-pantoprazole-40', name: 'Pantoprazole', strength: '40 mg', route: 'PO', frequency: 'daily', duration: '30 days' },
+    { id: 'rx-furosemide-40', name: 'Furosemide', strength: '40 mg', route: 'PO', frequency: 'daily', duration: '14 days' },
+    { id: 'rx-warfarin-5', name: 'Warfarin', strength: '5 mg', route: 'PO', frequency: 'daily per INR', duration: '30 days' },
+  ],
+  prescriptions: [],
   patients: [
     {
       id: 'patient-001',
       name: 'Alex Carter',
+      fullName: 'Alex Carter',
+      dob: '1988-02-14',
+      sex: 'M',
+      bloodType: 'O+',
       email: 'alex.carter@example.com',
       phone: '+1 (555) 123-1111',
       address: '123 Main St, Accra, Ghana',
+      preferredPharmacyId: 'pharm1',
+      preferredPharmacyOtherText: '',
       messages: [
         {
           from: 'Dr. Smith',
@@ -49,7 +122,7 @@ const defaultData = {
         profile: {
           fullName: 'Alex Carter',
           dob: '1988-02-14',
-          sex: 'Male',
+          sex: 'M',
           phone: '+1 (555) 123-1111',
           email: 'alex.carter@example.com',
           address: '123 Main St, Accra, Ghana',
@@ -135,9 +208,15 @@ const defaultData = {
     {
       id: 'patient-002',
       name: 'Jamie Rivera',
+      fullName: 'Jamie Rivera',
+      dob: '1990-06-02',
+      sex: 'F',
+      bloodType: 'A+',
       email: 'jamie.rivera@example.com',
       phone: '+1 (555) 123-2222',
       address: '45 Palm Ave, Kumasi, Ghana',
+      preferredPharmacyId: 'pharm2',
+      preferredPharmacyOtherText: '',
       messages: [
         {
           from: 'Dr. Lee',
@@ -151,7 +230,7 @@ const defaultData = {
         profile: {
           fullName: 'Jamie Rivera',
           dob: '1990-06-02',
-          sex: 'Female',
+          sex: 'F',
           phone: '+1 (555) 123-2222',
           email: 'jamie.rivera@example.com',
           address: '45 Palm Ave, Kumasi, Ghana',
@@ -202,6 +281,9 @@ const defaultData = {
     { id: 'doc1', name: 'Dr. Smith', role: 'doctor', specialty: 'Cardiology' },
     { id: 'doc2', name: 'Dr. Johnson', role: 'doctor', specialty: 'Family Medicine' },
     { id: 'nurse1', name: 'Nurse Lee', role: 'nurse', department: 'Tele-triage' },
+    { id: 'psw1', name: 'PSW Jordan', role: 'psw', department: 'HomeCare' },
+    { id: 'spec1', name: 'Dr. Patel', role: 'specialist', specialty: 'Dermatology' },
+    { id: 'pharm1', name: 'Pharmacist Kim', role: 'pharmacist' },
   ],
   appointments: [
     {

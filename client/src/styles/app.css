@@ -93,6 +93,121 @@ body {
   box-shadow: 0 6px 18px -12px rgba(0,0,0,0.25);
 }
 
+/* --- Patient Chart (clinician at-a-glance) --- */
+.patient-chart__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  background: #ffffff;
+  margin-bottom: 12px;
+}
+
+.patient-chart__summary-main {
+  min-width: 220px;
+}
+
+.patient-chart__name {
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.patient-chart__meta {
+  font-size: 12px;
+}
+
+.patient-chart__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  flex: 1;
+}
+
+.patient-chart__chip-group {
+  min-width: 220px;
+}
+
+.patient-chart__chip-label {
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.patient-chart__chip {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.patient-chart__panel {
+  border-radius: 14px;
+}
+
+.patient-chart__subpanel {
+  border-radius: 14px;
+  background: #fafafa;
+}
+
+.patient-chart__panel-title {
+  font-weight: 700;
+}
+
+.patient-chart__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+@media (min-width: 768px) {
+  .patient-chart__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.patient-chart__metric-label {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.60);
+  margin-bottom: 6px;
+}
+
+.patient-chart__timeline {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.patient-chart__timeline-item {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.patient-chart__timeline-left {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.patient-chart__timeline-main {
+  display: grid;
+  gap: 2px;
+}
+
+.patient-chart__kv {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
 .chat-launch {
   position: fixed;
   bottom: 20px;

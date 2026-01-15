@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   Form,
@@ -41,10 +41,13 @@ const fetchWithTimeout = (url, options = {}, ms = 12000) => {
   }).finally(() => clearTimeout(t));
 };
 
-const ChatModule = ({ show, onHide, currentUser, recipients = [] }) => {
+const ChatModule = ({ show, onHide, currentUser, recipients = [], contextType, contextId, threadKey }) => {
   const [providers, setProviders] = useState([]);
-  const [conversations, setConversations] = useState([]);
   const [activePartner, setActivePartner] = useState(null);
+  const [, setConversations] = useState([]);
+
+  const [contactQuery, setContactQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
 
   const [loadingProviders, setLoadingProviders] = useState(false);
   const [loadingConvos, setLoadingConvos] = useState(false);
@@ -56,7 +59,13 @@ const ChatModule = ({ show, onHide, currentUser, recipients = [] }) => {
 
   const listRef = useRef(null);
 
-  const api = (path) => `${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`;
+  const api = useCallback((path) => `${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`, []);
+
+  useEffect(() => {
+    if (!show) return;
+    setContactQuery('');
+    setRoleFilter('all');
+  }, [show]);
 
   useEffect(() => {
     if (!show) return;
@@ -93,24 +102,28 @@ const ChatModule = ({ show, onHide, currentUser, recipients = [] }) => {
       try {
         const r = await fetchWithTimeout(api(`/api/messages/conversations/${currentUser.id}`));
         const data = await r.json();
-        setConversations(asArray(data, 'conversations'));
+        const convos = asArray(data, 'conversations');
+        setConversations(convos);
+        if (convos.length && !activePartner) {
+          setActivePartner(convos[0]);
+        }
       } catch (e) {
         setError(`Error fetching conversations: ${e?.message || String(e)}`);
-        setConversations([]);
       } finally {
         setLoadingConvos(false);
       }
     };
 
     loadConversations();
-  }, [show, currentUser]);
+  }, [show, currentUser, activePartner]);
 
-  const loadMessages = async (partnerId) => {
+  const loadMessages = useCallback(async (partnerId) => {
     if (!currentUser?.id || !partnerId) return;
     setLoadingMessages(true);
     setError('');
     try {
-      const url = api(`/api/messages/messages/${currentUser.id}/${partnerId}`);
+      const query = contextType && contextId ? `?contextType=${encodeURIComponent(contextType)}&contextId=${encodeURIComponent(contextId)}` : '';
+      const url = api(`/api/messages/messages/${currentUser.id}/${partnerId}${query}`);
       const r = await fetchWithTimeout(url);
       const data = await r.json();
       const uniq = Array.from(new Map(asArray(data, 'messages').map((m) => [m._id || `${m.senderId}|${m.recipientId}|${m.timestamp || m.createdAt}`, m])).values());
@@ -125,7 +138,23 @@ const ChatModule = ({ show, onHide, currentUser, recipients = [] }) => {
     } finally {
       setLoadingMessages(false);
     }
-  };
+  }, [api, contextId, contextType, currentUser?.id]);
+
+  useEffect(() => {
+    if (!show) return;
+    if (!Array.isArray(recipients) || !recipients.length) return;
+    if (!currentUser?.id) return;
+
+    const first = recipients[0];
+    const firstId = first?.id || first?.userId || first?.providerId || first?.username;
+    if (!firstId) return;
+
+    const activeId = activePartner?.id || activePartner?.userId || activePartner?.providerId || activePartner?.username;
+    if (activeId === firstId) return;
+
+    setActivePartner(first);
+    loadMessages(firstId);
+  }, [show, recipients, currentUser, contextType, contextId, activePartner, loadMessages]);
 
   const pickPartner = (p) => {
     setActivePartner(p);
@@ -147,6 +176,9 @@ const ChatModule = ({ show, onHide, currentUser, recipients = [] }) => {
       message: draft.trim(),
       messageType: 'text',
       priority: 'normal',
+      contextType,
+      contextId,
+      threadKey: threadKey || (contextType && contextId ? `${contextType}:${contextId}` : undefined),
     };
 
     try {
@@ -182,6 +214,56 @@ const ChatModule = ({ show, onHide, currentUser, recipients = [] }) => {
 
   const Busy = ({ on }) => (on ? <Spinner animation="border" size="sm" className="ms-2" /> : null);
 
+  const allowedStaffRoles = useMemo(() => new Set(['doctor', 'nurse', 'psw']), []);
+
+  const staffMode = useMemo(() => {
+    const list = Array.isArray(providers) ? providers : [];
+    const roles = new Set(list.map((p) => String(p?.role || '').toLowerCase()).filter(Boolean));
+    const hasStaff = Array.from(roles).some((r) => allowedStaffRoles.has(r));
+
+    // If this list is explicitly patient recipients (e.g., admin broadcasting), keep it intact.
+    const onlyPatients = roles.size > 0 && roles.size === 1 && roles.has('patient');
+    if (onlyPatients) return false;
+
+    // Default to staff-only when we have staff roles or when role metadata is missing.
+    return hasStaff || roles.size === 0;
+  }, [providers, allowedStaffRoles]);
+
+  const filteredProviders = useMemo(() => {
+    const list = Array.isArray(providers) ? providers : [];
+    const q = String(contactQuery || '').trim().toLowerCase();
+    const rf = String(roleFilter || 'all').toLowerCase();
+
+    return list
+      .filter((p) => {
+        const role = String(p?.role || '').toLowerCase();
+        if (staffMode) {
+          // In staff mode, only show doctor/nurse/psw.
+          if (role && !allowedStaffRoles.has(role)) return false;
+          if (rf !== 'all' && role !== rf) return false;
+        } else {
+          // In non-staff mode (patient list), allow role filter only if user selects it.
+          if (rf !== 'all' && role !== rf) return false;
+        }
+
+        if (!q) return true;
+        const hay = [
+          p?.name,
+          p?.displayName,
+          p?.email,
+          p?.username,
+          p?.id,
+          p?.userId,
+          p?.providerId,
+        ]
+          .filter(Boolean)
+          .map((v) => String(v).toLowerCase())
+          .join(' ');
+        return hay.includes(q);
+      })
+      .slice();
+  }, [providers, contactQuery, roleFilter, staffMode, allowedStaffRoles]);
+
   return (
     <Modal show={show} onHide={onHide} size="lg" centered>
       <Modal.Header closeButton>
@@ -198,8 +280,38 @@ const ChatModule = ({ show, onHide, currentUser, recipients = [] }) => {
               <Busy on={loadingProviders || loadingConvos} />
             </div>
 
+            <div className="d-grid gap-2 mb-2">
+              <Form.Control
+                size="sm"
+                placeholder={staffMode ? 'Search staff…' : 'Search contacts…'}
+                value={contactQuery}
+                onChange={(e) => setContactQuery(e.target.value)}
+              />
+              <Form.Select
+                size="sm"
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+              >
+                <option value="all">{staffMode ? 'All staff' : 'All roles'}</option>
+                {staffMode ? (
+                  <>
+                    <option value="doctor">Doctor</option>
+                    <option value="nurse">Nurse</option>
+                    <option value="psw">PSW</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="patient">Patient</option>
+                    <option value="doctor">Doctor</option>
+                    <option value="nurse">Nurse</option>
+                    <option value="psw">PSW</option>
+                  </>
+                )}
+              </Form.Select>
+            </div>
+
             <ListGroup>
-              {providers.map((p, idx) => (
+              {filteredProviders.map((p, idx) => (
                 <ListGroup.Item
                   key={p.id || p.userId || p.providerId || p.username || idx}
                   action
@@ -212,7 +324,7 @@ const ChatModule = ({ show, onHide, currentUser, recipients = [] }) => {
                   </div>
                 </ListGroup.Item>
               ))}
-              {!providers.length && !loadingProviders && (
+              {!filteredProviders.length && !loadingProviders && (
                 <ListGroup.Item className="text-muted">No contacts found.</ListGroup.Item>
               )}
             </ListGroup>

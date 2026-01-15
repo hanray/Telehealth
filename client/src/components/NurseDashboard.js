@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Badge, Button, Card, Col, Form, ListGroup, Modal, Row } from 'react-bootstrap';
 
 const seedPatients = [
@@ -130,7 +130,7 @@ const seedPatients = [
   },
 ];
 
-const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenChat, onOpenAssignments }) => {
+const NurseDashboard = ({ patients = [], prescriptions = [], onOpenCarePlan, onOpenRecords, onOpenChat, onOpenAssignments, onOpenPatients, onUpdateMedStatus, t = (text) => text }) => {
   // Merge provided patients with seeds so the card always stays populated and realistic.
   const basePatients = useMemo(() => {
     if (!patients.length) return seedPatients;
@@ -192,8 +192,10 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
     height: '68',
   });
   const [noteDraft, setNoteDraft] = useState('');
-  const [medList, setMedList] = useState([]);
-  const [handoff, setHandoff] = useState({ start: false, end: false, notes: '', endAt: null });
+  const [handoff, setHandoff] = useState({ start: false, startAt: null, startPatientId: null, startPatientName: null, startLocation: null, startStatus: null, end: false, notes: '', endAt: null });
+  const [showShiftStartModal, setShowShiftStartModal] = useState(false);
+  const [shiftStartDraft, setShiftStartDraft] = useState({ patientId: '', location: '', status: '' });
+  const [shiftEvents, setShiftEvents] = useState([]);
   const [checklist, setChecklist] = useState({
     adls: false,
     woundCare: false,
@@ -208,20 +210,25 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
   const [endError, setEndError] = useState('');
   const [visitModal, setVisitModal] = useState({ show: false, stop: null, start: '', end: '', note: '' });
 
-  useEffect(() => {
-    const mapped = filteredPatients
-      .map((p) => ({
-        id: p.id,
-        name: p.medication?.name,
-        patient: p.name,
-        time: p.medication?.time,
-        route: p.medication?.route,
-        instructions: p.medication?.instructions,
-        status: p.medication?.status,
-      }))
-      .filter((m) => m.name);
-    setMedList(mapped);
-  }, [filteredPatients]);
+  const medList = useMemo(() => {
+    return prescriptions.map((rx) => {
+      const patient = filteredPatients.find((p) => p.id === rx.patientId) || {};
+      const normalized = rx.normalized || {};
+      const status = rx.status === 'Dispensed' ? 'administered' : rx.status === 'Ready' ? 'pending' : rx.status === 'Processing' ? 'pending' : 'pending';
+      return {
+        id: rx.id,
+        patientId: rx.patientId,
+        patient: patient.name || rx.patientId,
+        name: normalized.medicationName || rx.rawText || 'Medication',
+        route: normalized.route || '',
+        frequency: normalized.frequency,
+        instructions: normalized.instructions || rx.rawText,
+        time: rx.createdAt,
+        startAt: rx.createdAt,
+        status,
+      };
+    });
+  }, [filteredPatients, prescriptions]);
 
   const stats = useMemo(() => ({
     assigned: filteredPatients.length,
@@ -257,7 +264,7 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
 
   const formatDisplay = (d) => d.toLocaleString(undefined, { hour: 'numeric', minute: '2-digit', year: 'numeric', month: 'numeric', day: 'numeric' });
 
-  const buildReport = () => {
+  const buildReport = useCallback(() => {
     const start = parseInputDate(shiftStart);
     const end = parseInputDate(shiftEnd);
     const lines = [];
@@ -286,11 +293,11 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
     lines.push('');
     lines.push('Tip: Use Regenerate after updating vitals, meds, or notes.');
     return lines.join('\n');
-  };
+  }, [filteredPatients, shiftEnd, shiftStart]);
 
   useEffect(() => {
     setReportText(buildReport());
-  }, [shiftStart, shiftEnd, filteredPatients]);
+  }, [buildReport]);
 
   const handleCopy = async () => {
     try {
@@ -324,6 +331,7 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
     <div className="d-grid gap-2">
       <Button variant="success">Emergency Call</Button>
       <Button variant="success" onClick={onOpenChat}>Escalate concern</Button>
+      <Button variant="outline-primary" onClick={onOpenPatients}>Patients</Button>
       <Button variant="success" onClick={onOpenAssignments}>Manage Patients</Button>
       <Button variant="outline-secondary" onClick={() => setShowShiftReport(true)}>Shift Report</Button>
     </div>
@@ -349,13 +357,7 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
 
   const confirmAdministration = () => {
     if (!adminTarget) return;
-    setMedList((prev) =>
-      prev.map((m) =>
-        m.patient === adminTarget.patient && m.name === adminTarget.name
-          ? { ...m, status: 'administered' }
-          : m
-      )
-    );
+    onUpdateMedStatus?.({ prescriptionId: adminTarget.id, status: 'Dispensed' });
     setShowAdminModal(false);
     setAdminTarget(null);
   };
@@ -366,11 +368,11 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
         <Card.Body>
           <div className="d-flex justify-content-between align-items-center mb-2">
             <div>
-              <Card.Title className="mb-0">HomeCare Shiftboard</Card.Title>
-              <Card.Subtitle className="text-muted">Unit of work: Shift / Route / Home visit tasks</Card.Subtitle>
+              <Card.Title className="mb-0">{t('HomeCare Shiftboard')}</Card.Title>
+              <Card.Subtitle className="text-muted">{t('Unit of work: Shift / Route / Home visit tasks')}</Card.Subtitle>
             </div>
           </div>
-          <Card.Text>Work through tasks, document notes, and escalate to providers.</Card.Text>
+          <Card.Text>{t('Work through tasks, document notes, and escalate to providers.')}</Card.Text>
         </Card.Body>
       </Card>
 
@@ -379,9 +381,9 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
           <Row className="gy-3">
             <Col md={6}>
               <div className="d-flex justify-content-between align-items-center mb-2">
-                <div className="fw-semibold">Shift start / handoff</div>
+                <div className="fw-semibold">{t('Shift start / handoff')}</div>
                 <Badge bg={handoff.end ? 'secondary' : handoff.start ? 'success' : 'secondary'}>
-                  {handoff.end ? 'Ended' : handoff.start ? 'Started' : 'Not started'}
+                  {handoff.end ? t('Ended') : handoff.start ? t('Started') : t('Not started')}
                 </Badge>
               </div>
               <div className="d-flex gap-2">
@@ -389,9 +391,15 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
                   size="sm"
                   variant={handoff.start ? 'outline-secondary' : 'primary'}
                   disabled={handoff.start || handoff.end}
-                  onClick={() => setHandoff((prev) => ({ ...prev, start: true }))}
+                  onClick={() => {
+                    const first = routeStops?.[0] || filteredPatients?.[0] || null;
+                    const patientId = first?.id || '';
+                    const location = first?.address || first?.room || first?.window || '';
+                    setShiftStartDraft({ patientId, location, status: '' });
+                    setShowShiftStartModal(true);
+                  }}
                 >
-                  Mark shift start
+                  {t('Mark shift start')}
                 </Button>
                 <Button
                   size="sm"
@@ -399,12 +407,41 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
                   disabled={!handoff.start || handoff.end}
                   onClick={() => setShowEndModal(true)}
                 >
-                  Mark handoff / end
+                  {t('Mark handoff / end')}
                 </Button>
               </div>
+
+              {handoff.start && (
+                <div className="mt-2 small">
+                  <div><strong>{t('Started')}:</strong> {handoff.startAt ? new Date(handoff.startAt).toLocaleString() : ''}</div>
+                  <div><strong>{t('Patient')}:</strong> {handoff.startPatientName || handoff.startPatientId || ''}</div>
+                  <div><strong>{t('Location')}:</strong> {handoff.startLocation || ''}</div>
+                  {handoff.startStatus && <div className="text-muted">{handoff.startStatus}</div>}
+                </div>
+              )}
+
+              {!!shiftEvents.length && (
+                <div className="mt-2">
+                  <div className="text-muted" style={{ fontSize: 12 }}>{t('Status updates')}</div>
+                  <ListGroup variant="flush" className="small">
+                    {shiftEvents.slice(-3).reverse().map((e) => (
+                      <ListGroup.Item key={e.id} className="px-0">
+                        <div className="d-flex justify-content-between">
+                          <span className="fw-semibold">{e.status}</span>
+                          <span className="text-muted">{new Date(e.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <div className="text-muted" style={{ fontSize: 12 }}>
+                          {(e.patientName || e.patientId) ? `${e.patientName || e.patientId} • ` : ''}{e.location || ''}
+                        </div>
+                        {e.note && <div>{e.note}</div>}
+                      </ListGroup.Item>
+                    ))}
+                  </ListGroup>
+                </div>
+              )}
             </Col>
             <Col md={6}>
-              <div className="fw-semibold mb-2">Route / today's homes</div>
+              <div className="fw-semibold mb-2">{t("Route / today's homes")}</div>
               <ListGroup variant="flush" className="small">
                 {routeStops.map((p) => (
                   <ListGroup.Item key={p.id} className="d-flex justify-content-between align-items-center">
@@ -417,7 +454,7 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
                           disabled={!!p.outcome || handoff.end}
                           onClick={() => openCompleteModal(p)}
                         >
-                          Complete visit
+                          {t('Complete visit')}
                         </Button>
                         <Button
                           size="sm"
@@ -425,7 +462,7 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
                           disabled={!!p.outcome || handoff.end}
                           onClick={() => setOutcomeModal({ show: true, stop: p, outcome: 'client_not_home', note: '', reschedule: false })}
                         >
-                          Client not home
+                          {t('Client not home')}
                         </Button>
                         <Button
                           size="sm"
@@ -433,13 +470,13 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
                           disabled={!!p.outcome || handoff.end}
                           onClick={() => setOutcomeModal({ show: true, stop: p, outcome: 'unable_to_complete', note: '', reschedule: false })}
                         >
-                          Unable to complete
+                          {t('Unable to complete')}
                         </Button>
                       </div>
                     </div>
                     <div className="d-flex flex-column align-items-end gap-1">
                       <Badge bg={p.outcome ? 'secondary' : 'light'} text={p.outcome ? undefined : 'dark'}>
-                        {p.outcome ? 'Outcome recorded' : 'Scheduled'}
+                        {p.outcome ? t('Outcome recorded') : t('Scheduled')}
                       </Badge>
                       {p.outcomeAt && (
                         <span className="text-muted" style={{ fontSize: 11 }}>
@@ -451,7 +488,7 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
                 ))}
               </ListGroup>
               <div className="d-flex gap-2 mt-2 small">
-                <Badge bg="light" text="dark">Select an outcome per visit</Badge>
+                <Badge bg="light" text="dark">{t('Select an outcome per visit')}</Badge>
               </div>
             </Col>
           </Row>
@@ -464,7 +501,7 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
             <Col sm={6} md={3} className="mb-2">
               <Card className="text-center">
                 <Card.Body>
-                  <div className="fw-semibold">Assigned Patients</div>
+                  <div className="fw-semibold">{t('Assigned Patients')}</div>
                   <div style={{ fontSize: 26 }}>{stats.assigned}</div>
                 </Card.Body>
               </Card>
@@ -472,7 +509,7 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
             <Col sm={6} md={3} className="mb-2">
               <Card className="text-center">
                 <Card.Body>
-                  <div className="fw-semibold">Pending Medications</div>
+                  <div className="fw-semibold">{t('Pending Medications')}</div>
                   <div style={{ fontSize: 26 }}>{stats.pendingMeds}</div>
                 </Card.Body>
               </Card>
@@ -480,7 +517,7 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
             <Col sm={6} md={3} className="mb-2">
               <Card className="text-center">
                 <Card.Body>
-                  <div className="fw-semibold">Overdue Medications</div>
+                  <div className="fw-semibold">{t('Overdue Medications')}</div>
                   <div style={{ fontSize: 26 }}>{stats.overdueMeds}</div>
                 </Card.Body>
               </Card>
@@ -488,7 +525,7 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
             <Col sm={6} md={3} className="mb-2">
               <Card className="text-center">
                 <Card.Body>
-                  <div className="fw-semibold">Stable Patients</div>
+                  <div className="fw-semibold">{t('Stable Patients')}</div>
                   <div style={{ fontSize: 26 }}>{stats.stable}</div>
                 </Card.Body>
               </Card>
@@ -501,18 +538,18 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
         <Col lg={8} className="d-flex flex-column gap-3">
           <Card className="card-plain">
             <Card.Body>
-              <Card.Title>My Clients</Card.Title>
+              <Card.Title>{t('My Clients')}</Card.Title>
               <div className="table-responsive">
                 <table className="table align-middle mb-0">
                   <thead className="table-light">
                     <tr>
-                      <th>Client</th>
-                      <th>Address / window</th>
-                      <th>Focus</th>
-                      <th>Status</th>
-                      <th>Priority</th>
-                      <th>Last Vitals</th>
-                      <th>Actions</th>
+                      <th>{t('Client')}</th>
+                      <th>{t('Address')}</th>
+                      <th>{t('Focus')}</th>
+                      <th>{t('Status')}</th>
+                      <th>{t('Priority')}</th>
+                      <th>{t('Vitals')}</th>
+                      <th>{t('Actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -605,8 +642,8 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
                   <ListGroup.Item key={idx} className="d-flex justify-content-between align-items-start gap-3">
                     <div>
                       <div className="fw-semibold">{m.name}</div>
-                      <div className="text-muted" style={{ fontSize: 12 }}>{m.time} | {m.route}</div>
-                      <div className="text-muted" style={{ fontSize: 12 }}>{m.instructions}</div>
+                      <div className="text-muted" style={{ fontSize: 12 }}>{m.time || m.startAt || 'TBD'} | {m.route}</div>
+                      <div className="text-muted" style={{ fontSize: 12 }}>{m.instructions || m.frequency || ''}</div>
                       <div className="text-muted" style={{ fontSize: 12 }}>For {m.patient}</div>
                     </div>
                     <div className="d-flex flex-column align-items-end gap-2">
@@ -621,6 +658,15 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
                       >
                         Administer
                       </Button>
+                      {m.status !== 'overdue' && m.status !== 'administered' && (
+                        <Button
+                          size="sm"
+                          variant="outline-danger"
+                          onClick={() => onUpdateMedStatus?.({ prescriptionId: m.id, status: 'Processing' })}
+                        >
+                          Mark overdue
+                        </Button>
+                      )}
                     </div>
                   </ListGroup.Item>
                 ))}
@@ -879,11 +925,111 @@ const NurseDashboard = ({ patients = [], onOpenCarePlan, onOpenRecords, onOpenCh
                 return;
               }
               setEndError('');
-              setHandoff((prev) => ({ ...prev, end: true, endAt: new Date().toISOString(), notes: endSummary.trim() }));
+              const endAt = new Date().toISOString();
+              setShiftEvents((prev) => ([
+                ...prev,
+                {
+                  id: `shift_evt_${Date.now()}_end`,
+                  at: endAt,
+                  status: 'Ended',
+                  patientId: null,
+                  patientName: null,
+                  location: null,
+                  note: endSummary.trim(),
+                },
+              ]));
+              setHandoff((prev) => ({ ...prev, end: true, endAt, notes: endSummary.trim() }));
               setShowEndModal(false);
             }}
           >
             End shift
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={showShiftStartModal} onHide={() => setShowShiftStartModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>{t('Start shift')}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="d-grid gap-2">
+            <Form.Group>
+              <Form.Label>{t('Patient')}</Form.Label>
+              <Form.Select
+                value={shiftStartDraft.patientId}
+                onChange={(e) => {
+                  const patientId = e.target.value;
+                  const p = (routeStops || []).find((x) => x.id === patientId) || (filteredPatients || []).find((x) => x.id === patientId);
+                  const location = p?.address || p?.room || p?.window || '';
+                  setShiftStartDraft((prev) => ({ ...prev, patientId, location }));
+                }}
+              >
+                <option value="">{t('Select patient')}</option>
+                {(routeStops || filteredPatients || []).map((p) => (
+                  <option key={p.id} value={p.id}>{p.name || p.id}</option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>{t('Location (manual)')}</Form.Label>
+              <Form.Control
+                value={shiftStartDraft.location}
+                onChange={(e) => setShiftStartDraft((prev) => ({ ...prev, location: e.target.value }))}
+                placeholder={t('Address / unit / room (no GPS)')}
+              />
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>{t('Status update')}</Form.Label>
+              <Form.Control
+                value={shiftStartDraft.status}
+                onChange={(e) => setShiftStartDraft((prev) => ({ ...prev, status: e.target.value }))}
+                placeholder={t('Optional note (e.g., equipment check complete)')}
+              />
+            </Form.Group>
+            <Alert variant="secondary" className="mb-0">
+              {t('No geo tracking. Location is manual text only.')}
+            </Alert>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={() => setShowShiftStartModal(false)}>{t('Cancel')}</Button>
+          <Button
+            variant="primary"
+            disabled={!shiftStartDraft.patientId}
+            onClick={() => {
+              const now = new Date().toISOString();
+              const p = (routeStops || []).find((x) => x.id === shiftStartDraft.patientId) || (filteredPatients || []).find((x) => x.id === shiftStartDraft.patientId);
+              const patientName = p?.name || shiftStartDraft.patientId;
+              const location = String(shiftStartDraft.location || '').trim();
+              const note = String(shiftStartDraft.status || '').trim();
+
+              setHandoff((prev) => ({
+                ...prev,
+                start: true,
+                startAt: now,
+                startPatientId: shiftStartDraft.patientId,
+                startPatientName: patientName,
+                startLocation: location,
+                startStatus: note,
+              }));
+
+              setShiftEvents((prev) => ([
+                ...prev,
+                {
+                  id: `shift_evt_${Date.now()}_start`,
+                  at: now,
+                  status: 'Started',
+                  patientId: shiftStartDraft.patientId,
+                  patientName,
+                  location,
+                  note,
+                },
+              ]));
+
+              setShowShiftStartModal(false);
+            }}
+          >
+            {t('Start')}
           </Button>
         </Modal.Footer>
       </Modal>

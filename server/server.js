@@ -215,11 +215,21 @@ const adminRoutes = require('./routes/admin');
 const appointmentRoutes = require('./routes/appointments');
 const userRoutes = require('./routes/users');
 const messageRoutes = require('./routes/messages');
+const pharmacyRoutes = require('./routes/pharmacies');
+const prescriptionRoutes = require('./routes/prescriptions');
+const transactionRoutes = require('./routes/transactions');
+const planRoutes = require('./routes/plans');
+const subscriptionRoutes = require('./routes/subscriptions');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api', userRoutes); // exposes /api/patients/:id
+app.use('/api/pharmacies', pharmacyRoutes);
+app.use('/api/prescriptions', prescriptionRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/plans', planRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 if (HAS_MONGO) {
   app.use('/api/messages', checkDbConnection, messageRoutes);

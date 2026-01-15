@@ -1,5 +1,5 @@
 // src/components/MedicalRecordModule.js
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   Button,
@@ -19,16 +19,25 @@ const MedicalRecordModule = ({
   show,
   onHide,
   patients = [],
+  initialPatientId = null,
   readOnly = false,
   onUpdatePatient,
+  pharmacies = [],
+  t = (str) => str,
 }) => {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(null);
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState('summary');
+  const [pharmacyPref, setPharmacyPref] = useState({ id: '', other: '' });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
-  const emptyRecord = {
+  const emptyRecord = useMemo(() => ({
+    admin: {
+      mrn: '',
+      admissionDate: '',
+      dischargeDate: '',
+    },
     profile: {
       fullName: '',
       dob: '',
@@ -38,6 +47,7 @@ const MedicalRecordModule = ({
       address: '',
       bloodType: '',
     },
+    emergencyContacts: [],
     insurance: {
       provider: '',
       policyNumber: '',
@@ -50,15 +60,44 @@ const MedicalRecordModule = ({
     allergies: [],
     medications: [],
     problems: [],
+    history: {
+      medical: '',
+      surgical: '',
+      family: '',
+      social: '',
+    },
+    clinicalNotes: [],
+    vitals: [],
+    orders: {
+      labs: [],
+      imaging: [],
+      medications: [],
+      procedures: [],
+    },
+    results: {
+      pathology: [],
+      ecg: [],
+    },
+    carePlans: [],
+    legal: {
+      consents: [],
+      advanceDirectives: [],
+      privacyAcknowledgements: [],
+    },
     encounters: [],
     labs: [],
     imaging: [],
     immunizations: [],
     documents: [],
-  };
+  }), []);
 
   // Seeded fallback record used when a patient has no stored medicalRecord
-  const seededRecord = {
+  const seededRecord = useMemo(() => ({
+    admin: {
+      mrn: 'MRN-000123',
+      admissionDate: today,
+      dischargeDate: '',
+    },
     profile: {
       fullName: 'Sample Patient',
       dob: '1992-04-10',
@@ -68,6 +107,9 @@ const MedicalRecordModule = ({
       address: '456 Market St, Accra, Ghana',
       bloodType: 'A+',
     },
+    emergencyContacts: [
+      { name: 'Jordan Patient', relationship: 'Spouse', phone: '+1 (555) 010-9001' },
+    ],
     insurance: {
       provider: 'Ghana Health Insurance',
       policyNumber: 'GHI-2026-123456',
@@ -86,6 +128,37 @@ const MedicalRecordModule = ({
       { name: 'Hypertension', status: 'active' },
       { name: 'Type 2 Diabetes', status: 'active' },
     ],
+    history: {
+      medical: 'Hypertension; Type 2 Diabetes (diagnosed 2020).',
+      surgical: 'Appendectomy (2010).',
+      family: 'Father: HTN. Mother: T2DM.',
+      social: 'Non-smoker. Occasional alcohol. Exercises 2–3x/week.',
+    },
+    clinicalNotes: [
+      { date: today, type: 'physician', author: 'Dr. Smith', title: 'Initial assessment', text: 'Telehealth intake completed. Reviewed meds/allergies. Discussed goals and follow-up.' },
+    ],
+    vitals: [
+      { recordedAt: `${today}T09:00`, bp: '132/84', hr: 78, rr: 16, tempC: 36.8, spo2: 98, weightKg: 82.3, heightCm: 175 },
+      { recordedAt: `${today}T09:15`, bp: '128/82', hr: 76, rr: 16, tempC: 36.7, spo2: 99, weightKg: 82.1, heightCm: 175 },
+    ],
+    orders: {
+      labs: [{ orderedAt: today, test: 'CBC with Differential', priority: 'routine', status: 'ordered' }],
+      imaging: [{ orderedAt: today, study: 'Chest X-Ray', priority: 'routine', status: 'ordered' }],
+      medications: [{ orderedAt: today, medication: 'Lisinopril 10mg', sig: '10mg once daily', status: 'prescribed' }],
+      procedures: [],
+    },
+    results: {
+      pathology: [],
+      ecg: [],
+    },
+    carePlans: [
+      { date: today, plan: 'BP control and diabetes management', goals: 'BP < 130/80, A1c < 7.0', followUp: 'Follow up in 4 weeks with home BP log.' },
+    ],
+    legal: {
+      consents: [{ title: 'Telehealth Consent', date: today, status: 'signed' }],
+      advanceDirectives: [],
+      privacyAcknowledgements: [{ title: 'Privacy Acknowledgement', date: today, status: 'acknowledged' }],
+    },
     encounters: [
       {
         date: today,
@@ -111,16 +184,16 @@ const MedicalRecordModule = ({
     documents: [
       { title: 'Referral Letter.pdf', date: today, size: '250 KB' },
     ],
-  };
+  }), [today]);
 
   const [draft, setDraft] = useState(emptyRecord);
 
-  const normalizeList = (value) => {
+  const normalizeList = useCallback((value) => {
     if (Array.isArray(value)) return value;
     if (!value) return [];
     if (typeof value === 'string') return [value];
     return [];
-  };
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -132,13 +205,22 @@ const MedicalRecordModule = ({
     );
   }, [patients, query]);
 
-  const pick = (p) => {
+  const pick = useCallback((p) => {
     setSelected(p);
     const mr = p?.medicalRecord || {};
     const hasRecord = mr && Object.keys(mr).length > 0;
     const base = hasRecord ? mr : seededRecord;
+    setPharmacyPref({
+      id: p?.preferredPharmacyId || '',
+      other: p?.preferredPharmacyOtherText || '',
+    });
 
     setDraft({
+      admin: {
+        ...emptyRecord.admin,
+        ...(base.admin || {}),
+        mrn: (base.admin && base.admin.mrn) || p?.mrn || '',
+      },
       profile: {
         ...emptyRecord.profile,
         ...(base.profile || {}),
@@ -148,24 +230,76 @@ const MedicalRecordModule = ({
         email: (base.profile && base.profile.email) || p?.email || '',
         address: (base.profile && base.profile.address) || p?.address || '',
       },
+      emergencyContacts: Array.isArray(base.emergencyContacts) ? base.emergencyContacts : [],
       insurance: { ...emptyRecord.insurance, ...(base.insurance || {}) },
       allergies: normalizeList(base.allergies),
       medications: Array.isArray(base.medications) ? base.medications : [],
       problems: Array.isArray(base.problems)
         ? base.problems
         : normalizeList(base.conditions),
+      history: {
+        ...emptyRecord.history,
+        ...(base.history || {}),
+      },
+      clinicalNotes: Array.isArray(base.clinicalNotes) ? base.clinicalNotes : [],
+      vitals: Array.isArray(base.vitals) ? base.vitals : [],
+      orders: {
+        ...emptyRecord.orders,
+        ...(base.orders || {}),
+        labs: Array.isArray(base?.orders?.labs) ? base.orders.labs : [],
+        imaging: Array.isArray(base?.orders?.imaging) ? base.orders.imaging : [],
+        medications: Array.isArray(base?.orders?.medications) ? base.orders.medications : [],
+        procedures: Array.isArray(base?.orders?.procedures) ? base.orders.procedures : [],
+      },
+      results: {
+        ...emptyRecord.results,
+        ...(base.results || {}),
+        pathology: Array.isArray(base?.results?.pathology) ? base.results.pathology : [],
+        ecg: Array.isArray(base?.results?.ecg) ? base.results.ecg : [],
+      },
+      carePlans: Array.isArray(base.carePlans) ? base.carePlans : [],
+      legal: {
+        ...emptyRecord.legal,
+        ...(base.legal || {}),
+        consents: Array.isArray(base?.legal?.consents) ? base.legal.consents : [],
+        advanceDirectives: Array.isArray(base?.legal?.advanceDirectives) ? base.legal.advanceDirectives : [],
+        privacyAcknowledgements: Array.isArray(base?.legal?.privacyAcknowledgements) ? base.legal.privacyAcknowledgements : [],
+      },
       encounters: Array.isArray(base.encounters) ? base.encounters : [],
       labs: Array.isArray(base.labs) ? base.labs : [],
       imaging: Array.isArray(base.imaging) ? base.imaging : [],
       immunizations: Array.isArray(base.immunizations) ? base.immunizations : [],
       documents: Array.isArray(base.documents) ? base.documents : [],
     });
-    setActiveTab('profile');
-  };
+    setActiveTab('summary');
+  }, [emptyRecord, normalizeList, seededRecord]);
+
+  useEffect(() => {
+    if (!show) return;
+    if (!patients.length) return;
+
+    const preferred = initialPatientId
+      ? patients.find((p) => p?.id === initialPatientId)
+      : null;
+
+    if (preferred) {
+      if (selected?.id !== preferred.id) pick(preferred);
+      return;
+    }
+
+    if (!selected || !patients.find((p) => p.id === selected.id)) {
+      pick(patients[0]);
+    }
+  }, [show, patients, initialPatientId, selected, pick]);
 
   const save = () => {
     if (!selected) return;
-    const updated = { ...selected, medicalRecord: { ...draft } };
+    const updated = {
+      ...selected,
+      preferredPharmacyId: pharmacyPref.id,
+      preferredPharmacyOtherText: pharmacyPref.other,
+      medicalRecord: { ...draft },
+    };
     onUpdatePatient?.(updated);
   };
 
@@ -213,74 +347,250 @@ const MedicalRecordModule = ({
   return (
     <Modal show={show} onHide={onHide} size="lg" centered scrollable>
       <Modal.Header closeButton>
-        <Modal.Title>Medical Record</Modal.Title>
+        <Modal.Title>
+          {selected
+            ? `${t('Medical Record')} — ${selected.name || draft.profile.fullName || ''} (${selected.id})`
+            : t('Medical Record')}
+        </Modal.Title>
       </Modal.Header>
 
       <Modal.Body>
-        <Alert variant="info" className="mb-3">
-          Select a patient to view or edit their record. Patients are view-only.
-        </Alert>
+        {!readOnly && patients.length > 1 && (
+          <Alert variant="info" className="mb-3">
+            {t('Select a patient to view or edit their record. Patients are view-only.')}
+          </Alert>
+        )}
 
-        {!readOnly && (
+        {!readOnly && patients.length > 1 && (
           <Form className="mb-3">
             <Form.Group>
-              <Form.Label>Search Patients</Form.Label>
+              <Form.Label>{t('Search Patients')}</Form.Label>
               <Form.Control
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by name or ID..."
+                placeholder={t('Search by name or ID...')}
               />
             </Form.Group>
           </Form>
         )}
 
         <div className="d-flex gap-3">
-          <div style={{ width: 260 }}>
-            <ListGroup>
-              {filtered.map((p) => (
-                <ListGroup.Item
-                  key={p.id}
-                  action
-                  active={selected?.id === p.id}
-                  onClick={() => pick(p)}
-                >
-                  <div className="fw-semibold">{p.name}</div>
-                  <div className="text-muted" style={{ fontSize: 12 }}>
-                    {p.id}
-                  </div>
-                </ListGroup.Item>
-              ))}
-              {!filtered.length && (
-                <ListGroup.Item className="text-muted">
-                  No patients match.
-                </ListGroup.Item>
-              )}
-            </ListGroup>
-          </div>
+          {!readOnly && patients.length > 1 && (
+            <div style={{ width: 260 }}>
+              <ListGroup>
+                {filtered.map((p) => (
+                  <ListGroup.Item
+                    key={p.id}
+                    action
+                    active={selected?.id === p.id}
+                    onClick={() => pick(p)}
+                  >
+                    <div className="fw-semibold">{p.name}</div>
+                    <div
+                      className={selected?.id === p.id ? "text-white" : "text-muted"}
+                      style={{ fontSize: 12 }}
+                    >
+                      {p.id}
+                    </div>
+                  </ListGroup.Item>
+                ))}
+                {!filtered.length && (
+                  <ListGroup.Item className="text-muted">
+                    {t('No patients match.')}
+                  </ListGroup.Item>
+                )}
+              </ListGroup>
+            </div>
+          )}
 
           <div className="flex-grow-1">
             {!selected ? (
-              <div className="text-muted">Pick a patient to view details.</div>
+              <div className="text-muted">{t('Pick a patient to view details.')}</div>
             ) : (
               <>
                 <div className="fw-semibold mb-2">
                   {selected.name} ({selected.id})
                 </div>
-                <div className="text-muted mb-3">
-                  Viewing as{' '}
-                  {readOnly ? 'patient (view only)' : 'care team (editable)'}
-                </div>
+                {!readOnly && (
+                  <div className="text-muted mb-3">
+                    {t('Viewing as')}{' '}
+                    {readOnly ? t('patient (view only)') : t('care team (editable)')}
+                  </div>
+                )}
 
                 <Tabs
                   activeKey={activeTab}
-                  onSelect={(k) => setActiveTab(k || 'profile')}
+                  onSelect={(k) => setActiveTab(k || 'summary')}
                   className="mb-3"
                 >
-                  <Tab eventKey="profile" title="Profile">
+                  <Tab eventKey="summary" title={t('Summary')}>
+                    {(() => {
+                      const calcAge = (dob) => {
+                        if (!dob) return '';
+                        const d = new Date(dob);
+                        if (Number.isNaN(d.getTime())) return '';
+                        const now = new Date();
+                        let age = now.getFullYear() - d.getFullYear();
+                        const m = now.getMonth() - d.getMonth();
+                        if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1;
+                        return age;
+                      };
+
+                      const activeProblems = (draft.problems || [])
+                        .map((p) => (typeof p === 'string' ? { name: p, status: 'active' } : p))
+                        .filter((p) => p && p.name)
+                        .filter((p) => String(p.status || 'active').toLowerCase() !== 'resolved');
+
+                      const activeMeds = (draft.medications || [])
+                        .filter((m) => m && m.name)
+                        .filter((m) => String(m.status || 'active').toLowerCase() !== 'completed');
+
+                      const sortedEncounters = [...(draft.encounters || [])].sort((a, b) =>
+                        String(b?.date || '').localeCompare(String(a?.date || ''))
+                      );
+                      const sortedLabs = [...(draft.labs || [])].sort((a, b) =>
+                        String(b?.date || '').localeCompare(String(a?.date || ''))
+                      );
+                      const sortedVitals = [...(draft.vitals || [])].sort((a, b) =>
+                        String(b?.recordedAt || '').localeCompare(String(a?.recordedAt || ''))
+                      );
+                      const latestVitals = sortedVitals[0] || null;
+
+                      return (
+                        <Row className="g-3">
+                          <Col md={7}>
+                            <div className="fw-semibold mb-1">{t('Demographics')}</div>
+                            <Table bordered size="sm" className="mb-3">
+                              <tbody>
+                                <tr>
+                                  <td style={{ width: 160 }}><strong>{t('Full Name')}</strong></td>
+                                  <td>{draft.profile.fullName || selected?.name || ''}</td>
+                                </tr>
+                                <tr>
+                                  <td><strong>{t('DOB / Age')}</strong></td>
+                                  <td>
+                                    {draft.profile.dob
+                                      ? `${draft.profile.dob}${Number.isFinite(calcAge(draft.profile.dob)) ? ` (${calcAge(draft.profile.dob)})` : ''}`
+                                      : ''}
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td><strong>{t('Sex')}</strong></td>
+                                  <td>{draft.profile.sex || ''}</td>
+                                </tr>
+                                <tr>
+                                  <td><strong>{t('Blood Type')}</strong></td>
+                                  <td>{draft.profile.bloodType || ''}</td>
+                                </tr>
+                                <tr>
+                                  <td><strong>{t('Phone')}</strong></td>
+                                  <td>{draft.profile.phone || selected?.phone || ''}</td>
+                                </tr>
+                                <tr>
+                                  <td><strong>{t('Email')}</strong></td>
+                                  <td>{draft.profile.email || selected?.email || ''}</td>
+                                </tr>
+                              </tbody>
+                            </Table>
+
+                            <div className="fw-semibold mb-1">{t('Clinical Snapshot')}</div>
+                            <Table bordered size="sm" className="mb-0">
+                              <tbody>
+                                <tr>
+                                  <td style={{ width: 160 }}><strong>{t('Allergies')}</strong></td>
+                                  <td>
+                                    {Array.isArray(draft.allergies) && draft.allergies.length
+                                      ? draft.allergies.join(', ')
+                                      : t('None recorded')}
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td><strong>{t('Active Problems')}</strong></td>
+                                  <td>
+                                    {activeProblems.length
+                                      ? activeProblems.map((p) => p.name).join(', ')
+                                      : t('None recorded')}
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td><strong>{t('Active Medications')}</strong></td>
+                                  <td>
+                                    {activeMeds.length
+                                      ? activeMeds.map((m) => m.name).join(', ')
+                                      : t('None recorded')}
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td><strong>{t('Last Encounter')}</strong></td>
+                                  <td>
+                                    {sortedEncounters.length
+                                      ? `${sortedEncounters[0].date || ''} — ${sortedEncounters[0].type || ''}${sortedEncounters[0].provider ? ` (${sortedEncounters[0].provider})` : ''}`
+                                      : t('None recorded')}
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td><strong>{t('Most Recent Lab')}</strong></td>
+                                  <td>
+                                    {sortedLabs.length
+                                      ? `${sortedLabs[0].date || ''} — ${sortedLabs[0].test || ''}${sortedLabs[0].status ? ` [${sortedLabs[0].status}]` : ''}`
+                                      : t('None recorded')}
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </Table>
+                          </Col>
+
+                          <Col md={5}>
+                            <div className="fw-semibold mb-1">{t('Latest Vitals')}</div>
+                            <Table bordered size="sm" className="mb-3">
+                              <tbody>
+                                <tr>
+                                  <td style={{ width: 140 }}><strong>{t('Recorded')}</strong></td>
+                                  <td>{latestVitals?.recordedAt || t('None')}</td>
+                                </tr>
+                                <tr>
+                                  <td><strong>{t('BP')}</strong></td>
+                                  <td>{latestVitals?.bp || t('—')}</td>
+                                </tr>
+                                <tr>
+                                  <td><strong>{t('HR')}</strong></td>
+                                  <td>{typeof latestVitals?.hr === 'number' ? `${latestVitals.hr} bpm` : (latestVitals?.hr ?? t('—'))}</td>
+                                </tr>
+                                <tr>
+                                  <td><strong>{t('Temp')}</strong></td>
+                                  <td>{typeof latestVitals?.tempC === 'number' ? `${latestVitals.tempC} °C` : (latestVitals?.tempC ?? t('—'))}</td>
+                                </tr>
+                                <tr>
+                                  <td><strong>{t('SpO₂')}</strong></td>
+                                  <td>{typeof latestVitals?.spo2 === 'number' ? `${latestVitals.spo2}%` : (latestVitals?.spo2 ?? t('—'))}</td>
+                                </tr>
+                              </tbody>
+                            </Table>
+
+                            <div className="fw-semibold mb-1">{t('Coverage')}</div>
+                            <Table bordered size="sm" className="mb-0">
+                              <tbody>
+                                <tr>
+                                  <td style={{ width: 140 }}><strong>{t('Insurance')}</strong></td>
+                                  <td>{draft.insurance?.provider || t('None')}</td>
+                                </tr>
+                                <tr>
+                                  <td><strong>{t('Member ID')}</strong></td>
+                                  <td>{draft.insurance?.memberId || t('—')}</td>
+                                </tr>
+                              </tbody>
+                            </Table>
+                          </Col>
+                        </Row>
+                      );
+                    })()}
+                  </Tab>
+
+                  <Tab eventKey="profile" title={t('Profile')}>
                     <Row className="g-3">
                       <Col md={6}>
                         <Form.Group className="mb-2">
-                          <Form.Label>Full Name</Form.Label>
+                          <Form.Label>{t('Full Name')}</Form.Label>
                           <Form.Control
                             value={draft.profile.fullName}
                             onChange={(e) =>
@@ -297,7 +607,7 @@ const MedicalRecordModule = ({
                         </Form.Group>
 
                         <Form.Group className="mb-2">
-                          <Form.Label>Date of Birth</Form.Label>
+                          <Form.Label>{t('Date of Birth')}</Form.Label>
                           <Form.Control
                             type="date"
                             value={draft.profile.dob}
@@ -411,7 +721,7 @@ const MedicalRecordModule = ({
                     </Row>
                   </Tab>
 
-                  <Tab eventKey="insurance" title="Insurance">
+                  <Tab eventKey="insurance" title={t('Insurance')}>
                     <Row className="g-3">
                       <Col md={6}>
                         <Form.Group className="mb-2">
@@ -547,6 +857,37 @@ const MedicalRecordModule = ({
                           />
                         </Form.Group>
                       </Col>
+
+                      <Col md={12}>
+                        <Form.Group className="mb-2">
+                          <Form.Label>Preferred Pharmacy</Form.Label>
+                          <Form.Select
+                            value={pharmacyPref.id}
+                            onChange={(e) => setPharmacyPref({ ...pharmacyPref, id: e.target.value })}
+                            disabled={readOnly}
+                          >
+                            <option value="">Select pharmacy</option>
+                            {pharmacies.map((ph) => (
+                              <option key={ph.id} value={ph.id}>{ph.name}</option>
+                            ))}
+                            <option value="other">Other (specify)</option>
+                          </Form.Select>
+                        </Form.Group>
+                      </Col>
+
+                      {pharmacyPref.id === 'other' && (
+                        <Col md={12}>
+                          <Form.Group className="mb-2">
+                            <Form.Label>Other pharmacy details</Form.Label>
+                            <Form.Control
+                              value={pharmacyPref.other}
+                              onChange={(e) => setPharmacyPref({ ...pharmacyPref, other: e.target.value })}
+                              placeholder="Name, phone"
+                              disabled={readOnly}
+                            />
+                          </Form.Group>
+                        </Col>
+                      )}
                     </Row>
                   </Tab>
 
@@ -796,6 +1137,130 @@ const MedicalRecordModule = ({
                     <div className="text-muted mt-2">
                       New encounter creation is not available in this view.
                     </div>
+                  </Tab>
+
+                  <Tab eventKey="vitals" title={t('Vitals')}>
+                    <div className="mb-2 text-muted">{t('Vital signs over time (BP, HR, temp, SpO₂, weight).')}</div>
+                    <Table bordered responsive size="sm" className="mb-3">
+                      <thead>
+                        <tr>
+                          <th>{t('Recorded')}</th>
+                          <th>{t('BP')}</th>
+                          <th>{t('HR')}</th>
+                          <th>{t('RR')}</th>
+                          <th>{t('Temp (°C)')}</th>
+                          <th>{t('SpO₂')}</th>
+                          <th>{t('Wt (kg)')}</th>
+                          <th>{t('Ht (cm)')}</th>
+                          {!readOnly && <th style={{ width: 90 }}>{t('Actions')}</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...(draft.vitals || [])]
+                          .sort((a, b) => String(b?.recordedAt || '').localeCompare(String(a?.recordedAt || '')))
+                          .map((v, idx) => (
+                            <tr key={`${v.recordedAt || 'v'}-${idx}`}>
+                              <td>{v.recordedAt || ''}</td>
+                              <td>{v.bp || ''}</td>
+                              <td>{v.hr ?? ''}</td>
+                              <td>{v.rr ?? ''}</td>
+                              <td>{v.tempC ?? ''}</td>
+                              <td>{typeof v.spo2 === 'number' ? `${v.spo2}%` : (v.spo2 ?? '')}</td>
+                              <td>{v.weightKg ?? ''}</td>
+                              <td>{v.heightCm ?? ''}</td>
+                              {!readOnly && (
+                                <td>
+                                  <Button size="sm" variant="outline-danger" onClick={() => removeItem('vitals', idx)}>
+                                    {t('Remove')}
+                                  </Button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        {!(draft.vitals || []).length && (
+                          <tr>
+                            <td colSpan={readOnly ? 8 : 9} className="text-muted text-center">
+                              {t('No vitals recorded.')}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </Table>
+
+                    {!readOnly && (
+                      <Row className="g-2 align-items-end">
+                        <Col md={3}>
+                          <Form.Label>{t('Recorded At')}</Form.Label>
+                          <Form.Control type="datetime-local" id="mr-new-vitals-at" defaultValue={new Date().toISOString().slice(0, 16)} />
+                        </Col>
+                        <Col md={2}>
+                          <Form.Label>{t('BP')}</Form.Label>
+                          <Form.Control id="mr-new-vitals-bp" placeholder="120/80" />
+                        </Col>
+                        <Col md={1}>
+                          <Form.Label>{t('HR')}</Form.Label>
+                          <Form.Control id="mr-new-vitals-hr" placeholder="78" />
+                        </Col>
+                        <Col md={1}>
+                          <Form.Label>{t('RR')}</Form.Label>
+                          <Form.Control id="mr-new-vitals-rr" placeholder="16" />
+                        </Col>
+                        <Col md={1}>
+                          <Form.Label>{t('Temp')}</Form.Label>
+                          <Form.Control id="mr-new-vitals-temp" placeholder="36.8" />
+                        </Col>
+                        <Col md={1}>
+                          <Form.Label>{t('SpO₂')}</Form.Label>
+                          <Form.Control id="mr-new-vitals-spo2" placeholder="98" />
+                        </Col>
+                        <Col md={1}>
+                          <Form.Label>{t('Wt')}</Form.Label>
+                          <Form.Control id="mr-new-vitals-wt" placeholder="82" />
+                        </Col>
+                        <Col md={1}>
+                          <Form.Label>{t('Ht')}</Form.Label>
+                          <Form.Control id="mr-new-vitals-ht" placeholder="175" />
+                        </Col>
+                        <Col md={1} className="d-grid">
+                          <Button
+                            onClick={() => {
+                              const recordedAt = document.getElementById('mr-new-vitals-at').value;
+                              if (!recordedAt) return;
+
+                              const readStr = (id) => document.getElementById(id).value.trim();
+                              const readNum = (id) => {
+                                const raw = readStr(id);
+                                if (!raw) return undefined;
+                                const n = Number(raw);
+                                return Number.isFinite(n) ? n : undefined;
+                              };
+
+                              addItem('vitals', {
+                                recordedAt,
+                                bp: readStr('mr-new-vitals-bp') || undefined,
+                                hr: readNum('mr-new-vitals-hr'),
+                                rr: readNum('mr-new-vitals-rr'),
+                                tempC: readNum('mr-new-vitals-temp'),
+                                spo2: readNum('mr-new-vitals-spo2'),
+                                weightKg: readNum('mr-new-vitals-wt'),
+                                heightCm: readNum('mr-new-vitals-ht'),
+                              });
+
+                              document.getElementById('mr-new-vitals-bp').value = '';
+                              document.getElementById('mr-new-vitals-hr').value = '';
+                              document.getElementById('mr-new-vitals-rr').value = '';
+                              document.getElementById('mr-new-vitals-temp').value = '';
+                              document.getElementById('mr-new-vitals-spo2').value = '';
+                              document.getElementById('mr-new-vitals-wt').value = '';
+                              document.getElementById('mr-new-vitals-ht').value = '';
+                              document.getElementById('mr-new-vitals-at').value = new Date().toISOString().slice(0, 16);
+                            }}
+                          >
+                            {t('Add')}
+                          </Button>
+                        </Col>
+                      </Row>
+                    )}
                   </Tab>
 
                   <Tab eventKey="labs" title="Labs">

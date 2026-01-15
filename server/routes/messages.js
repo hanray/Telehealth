@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const Message = require('../models/Message');
 const { requireAuth } = require('../middleware/auth');
+const { normalizeDoc, normalizeMany } = require('../helpers/normalizeId');
 
 // All messaging endpoints require an authenticated user
 router.use(requireAuth);
@@ -25,46 +26,44 @@ router.get('/providers', async (req, res) => {
   }
 });
 
-// Get conversations for a user
+// Get conversations for a user (legacy/global view)
 router.get('/conversations/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     if (req.user.role !== 'admin' && req.user.id !== userId) {
       return res.status(403).json({ error: 'Cannot view conversations for another user', context: 'Demo / MVP auth' });
     }
-    
-    // Get unique conversations
+
     const messages = await Message.find({
       $or: [
         { senderId: userId },
         { recipientId: userId }
       ]
-    }).sort({ timestamp: -1 });
-    
-    // Group by conversation
+    }).sort({ createdAt: -1 });
+
     const conversationsMap = new Map();
-    
+
     messages.forEach(msg => {
       const otherUserId = msg.senderId === userId ? msg.recipientId : msg.senderId;
       const otherUserName = msg.senderId === userId ? msg.recipientName : msg.senderName;
-      
+
       if (!conversationsMap.has(otherUserId)) {
         conversationsMap.set(otherUserId, {
           userId: otherUserId,
           userName: otherUserName,
           lastMessage: msg.message,
-          lastMessageTime: msg.timestamp,
+          lastMessageTime: msg.createdAt,
           unreadCount: 0,
           conversationId: msg.conversationId
         });
       }
-      
+
       if (!msg.read && msg.recipientId === userId) {
         const conv = conversationsMap.get(otherUserId);
         conv.unreadCount++;
       }
     });
-    
+
     const conversations = Array.from(conversationsMap.values());
     res.json(conversations);
   } catch (error) {
@@ -72,29 +71,38 @@ router.get('/conversations/:userId', async (req, res) => {
   }
 });
 
-// Get messages between two users
+// Get messages (supports optional context)
 router.get('/messages/:userId/:recipientId', async (req, res) => {
   try {
     const { userId, recipientId } = req.params;
+    const { contextType, contextId } = req.query;
 
     if (req.user.role !== 'admin' && req.user.id !== userId) {
       return res.status(403).json({ error: 'Cannot view messages for another user', context: 'Demo / MVP auth' });
     }
-    
-    const messages = await Message.find({
+
+    const baseQuery = {
       $or: [
         { senderId: userId, recipientId: recipientId },
         { senderId: recipientId, recipientId: userId }
       ]
-    }).sort({ timestamp: 1 });
-    
-    // Mark messages as read
+    };
+
+    if (contextType && contextId) {
+      baseQuery.contextType = contextType;
+      baseQuery.contextId = contextId;
+    }
+
+    const messages = await Message.find(baseQuery).sort({ createdAt: 1 });
+
     await Message.updateMany(
-      { senderId: recipientId, recipientId: userId, read: false },
+      { senderId: recipientId, recipientId: userId, read: false, ...(contextType && contextId ? { contextType, contextId } : {}) },
       { read: true }
     );
-    
-    res.json(messages);
+
+    const normalized = normalizeMany(messages);
+
+    res.json(normalized);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -109,6 +117,10 @@ router.post('/send', async (req, res) => {
       return res.status(403).json({ error: 'Sender mismatch with session user', context: 'Demo / MVP auth' });
     }
 
+    const threadKey = incoming.contextType && incoming.contextId
+      ? `${incoming.contextType}:${incoming.contextId}`
+      : undefined;
+
     const messageData = {
       senderId: req.user.id,
       senderName: incoming.senderName || req.user.email,
@@ -119,6 +131,9 @@ router.post('/send', async (req, res) => {
       message: incoming.message,
       messageType: incoming.messageType || 'text',
       priority: incoming.priority || 'normal',
+      contextType: incoming.contextType,
+      contextId: incoming.contextId,
+      threadKey,
     };
 
     if (!messageData.recipientId || !messageData.recipientName || !messageData.recipientRole || !messageData.message) {
@@ -156,7 +171,7 @@ router.post('/send', async (req, res) => {
       }, 2000);
     }
     
-    res.status(201).json(newMessage);
+    res.status(201).json(normalizeDoc(newMessage));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

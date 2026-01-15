@@ -5,7 +5,7 @@ const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { findByEmail, addUser, nextId, allUsers } = require('../utils/userStore');
 
-const ALLOWED_ROLES = ['patient', 'doctor', 'nurse', 'admin'];
+const ALLOWED_ROLES = ['patient', 'doctor', 'nurse', 'pharmacy', 'admin'];
 const SUPPORTED_COUNTRIES = ['US', 'CA', 'GB', 'AU', 'IN', 'SG', 'PH', 'BR', 'MX', 'ZA'];
 const DEMO_LABEL = 'Demo / MVP auth';
 

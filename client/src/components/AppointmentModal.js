@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Modal, Form, Row, Col, Button, Alert, Spinner } from 'react-bootstrap';
 
-const AppointmentModal = ({ show, onHide, onScheduled, appointmentTypes = [] }) => {
-  const [form, setForm] = useState({
+const AppointmentModal = ({ show, onHide, onScheduled, appointmentTypes = [], prefill }) => {
+  const emptyForm = {
     patientName: '',
     patientEmail: '',
     patientPhone: '',
@@ -12,7 +12,9 @@ const AppointmentModal = ({ show, onHide, onScheduled, appointmentTypes = [] }) 
     appointmentType: '',
     priority: 'Normal',
     chiefComplaint: '',
-  });
+  };
+
+  const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -22,20 +24,17 @@ const AppointmentModal = ({ show, onHide, onScheduled, appointmentTypes = [] }) 
   );
 
   const reset = () => {
-    setForm({
-      patientName: '',
-      patientEmail: '',
-      patientPhone: '',
-      patientId: '',
-      date: '',
-      time: '',
-      appointmentType: '',
-      priority: 'Normal',
-      chiefComplaint: '',
-    });
+    setForm(emptyForm);
     setSubmitting(false);
     setError('');
   };
+
+  useEffect(() => {
+    if (!show) return;
+    if (prefill) {
+      setForm((prev) => ({ ...prev, ...prefill }));
+    }
+  }, [show, prefill]);
 
   const handleClose = () => {
     reset();

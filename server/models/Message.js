@@ -36,6 +36,10 @@ const MessageSchema = new mongoose.Schema(
 
     relatedAppointmentId: String,
     relatedPrescriptionId: String,
+
+    contextType: { type: String }, // e.g., 'prescription'
+    contextId: { type: String },
+    threadKey: { type: String }, // e.g., `prescription:<id>`
   },
   {
     timestamps: true, // adds createdAt, updatedAt
@@ -48,6 +52,7 @@ const MessageSchema = new mongoose.Schema(
 MessageSchema.index({ conversationId: 1, createdAt: 1 });      // chronologic reads per convo
 MessageSchema.index({ senderId: 1, recipientId: 1, createdAt: -1 });
 MessageSchema.index({ read: 1 });
+MessageSchema.index({ contextType: 1, contextId: 1, createdAt: 1 });
 
 // Optional: TTL to auto-expire messages after N seconds (e.g., 30 days)
 // MessageSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 30 });

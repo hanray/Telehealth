@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Button, Badge } from 'react-bootstrap';
+import { Card, Badge } from 'react-bootstrap';
 
 export const PRODUCT_CATALOG = [
   {

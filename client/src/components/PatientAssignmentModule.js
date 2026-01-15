@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   Button,
@@ -93,37 +93,7 @@ const PatientAssignmentModule = ({
     department: 'emergency',
     notes: '',
   });
-
-  useEffect(() => {
-    loadMockData();
-    loadAvailableStaff();
-  }, []);
-
-  useEffect(() => {
-    if (coordTasks.length === 0 && (myPatients.length > 0 || unassignedPatients.length > 0)) {
-      const anyPatient = myPatients[0] || unassignedPatients[0];
-      if (anyPatient) {
-        const nurse = availableStaff.find((s) => s.id === currentUser?.id) || availableStaff[0];
-        setCoordTasks([
-          {
-            id: 'T' + Date.now(),
-            patientId: anyPatient.id,
-            patientName: anyPatient.name,
-            title: 'Request PT assessment',
-            ownerId: nurse?.id || '',
-            ownerName: nurse?.name || 'Unassigned',
-            due: '',
-            priority: 'normal',
-            type: 'followup',
-            status: 'todo',
-            notes: 'PT/OT for mobility eval',
-          },
-        ]);
-      }
-    }
-  }, [myPatients, unassignedPatients, availableStaff, coordTasks.length, currentUser?.id]);
-
-  const loadMockData = () => {
+  const loadMockData = useCallback(() => {
     const mockUnassigned = [
       {
         id: 'P2024001',
@@ -310,6 +280,8 @@ const PatientAssignmentModule = ({
         : nursePanel; // default seed so tab is not empty in demos
 
     const mockAllAssigned = [
+      ...nursePanel.map((p) => ({ ...p, assignedTo: 'Nurse Johnson', assignedToId: 'N001' })),
+      ...doctorPanel.map((p) => ({ ...p, assignedTo: 'Nurse Williams', assignedToId: 'N002' })),
       {
         id: 'P2024020',
         name: 'Robert Chen',
@@ -341,9 +313,9 @@ const PatientAssignmentModule = ({
     setUnassignedPatients(mockUnassigned);
     setMyPatients(mockMyPatients);
     setAllAssignedPatients(mockAllAssigned);
-  };
+  }, [currentUser?.role]);
 
-  const loadAvailableStaff = () => {
+  const loadAvailableStaff = useCallback(() => {
     const mockStaff = [
       {
         id: 'N001',
@@ -370,9 +342,9 @@ const PatientAssignmentModule = ({
         name: 'Nurse Davis',
         role: 'nurse',
         department: 'obstetrics',
-        currentLoad: 4,
-        maxLoad: 5,
-        shift: 'Day (7AM-7PM)',
+        currentLoad: 1,
+        maxLoad: 4,
+        shift: 'Night (7PM-7AM)',
         specializations: ['Maternity', 'Neonatal'],
       },
       {
@@ -380,75 +352,46 @@ const PatientAssignmentModule = ({
         name: 'Dr. Smith',
         role: 'doctor',
         department: 'surgery',
-        currentLoad: 8,
-        maxLoad: 12,
-        shift: 'Day',
-        specializations: ['General Surgery'],
-      },
-      {
-        id: 'D002',
-        name: 'Dr. Johnson',
-        role: 'doctor',
-        department: 'internal',
-        currentLoad: 10,
-        maxLoad: 15,
-        shift: 'Day',
-        specializations: ['Internal Medicine', 'Endocrinology'],
+        currentLoad: 5,
+        maxLoad: 8,
+        shift: 'Day (7AM-7PM)',
+        specializations: ['Surgery', 'Post-op'],
       },
     ];
+
     setAvailableStaff(mockStaff);
-  };
+  }, []);
 
-  const staffNameById = (id) => availableStaff.find((s) => s.id === id)?.name || 'Unassigned';
+  useEffect(() => {
+    loadMockData();
+    loadAvailableStaff();
+  }, [loadAvailableStaff, loadMockData]);
 
-  const allPatientOptions = () => {
-    const map = new Map();
-    [...unassignedPatients, ...myPatients, ...allAssignedPatients].forEach((p) => {
-      if (p && p.id) map.set(p.id, { id: p.id, name: p.name });
-    });
-    return Array.from(map.values());
-  };
-
-  const patientNameById = (id) => allPatientOptions().find((p) => p.id === id)?.name || 'Unknown';
-
-  const getTriageBadge = (level) => {
-    const config = {
-      1: { bg: 'danger', text: 'Critical' },
-      2: { bg: 'warning', text: 'Urgent' },
-      3: { bg: 'info', text: 'Less Urgent' },
-      4: { bg: 'success', text: 'Non-Urgent' },
-      5: { bg: 'secondary', text: 'Minor' },
-    };
-    const { bg, text } = config[level] || config[3];
-    return <Badge bg={bg}>{text}</Badge>;
-  };
-
-  const getDepartmentBadge = (dept) => {
-    const config = {
-      emergency: 'danger',
-      icu: 'dark',
-      surgery: 'primary',
-      internal: 'info',
-      pediatrics: 'warning',
-      obstetrics: 'success',
-      orthopedics: 'secondary',
-    };
-    return <Badge bg={config[dept] || 'secondary'}>{dept.toUpperCase()}</Badge>;
-  };
-
-  const togglePatientSelection = (patientId) => {
-    setSelectedPatients((prev) =>
-      prev.includes(patientId) ? prev.filter((id) => id !== patientId) : [...prev, patientId]
-    );
-  };
+  useEffect(() => {
+    if (coordTasks.length === 0 && (myPatients.length > 0 || unassignedPatients.length > 0)) {
+      const anyPatient = myPatients[0] || unassignedPatients[0];
+      if (anyPatient) {
+        const nurse = availableStaff.find((s) => s.id === currentUser?.id) || availableStaff[0];
+        setCoordTasks([
+          {
+            id: 'T' + Date.now(),
+            patientId: anyPatient.id,
+            patientName: anyPatient.name,
+            title: 'Request PT assessment',
+            ownerId: nurse?.id || '',
+            ownerName: nurse?.name || 'Unassigned',
+            due: '',
+            priority: 'normal',
+            type: 'followup',
+            status: 'todo',
+            notes: 'PT/OT for mobility eval',
+          },
+        ]);
+      }
+    }
+  }, [availableStaff, coordTasks.length, currentUser?.id, myPatients, unassignedPatients]);
 
   const handleAssignPatients = () => {
-    if (!selectedStaffId || selectedPatients.length === 0) {
-      setAlertMessage('Please select both staff member and patients');
-      setAlertVariant('warning');
-      return;
-    }
-
     const staff = availableStaff.find((s) => s.id === selectedStaffId);
     if (staff && staff.currentLoad + selectedPatients.length > staff.maxLoad) {
       setAlertMessage(`${staff.name} cannot take ${selectedPatients.length} more patients (max: ${staff.maxLoad})`);
@@ -541,18 +484,81 @@ const PatientAssignmentModule = ({
     });
   };
 
-  const filterPatients = (patients) =>
-    patients.filter((p) => {
-      const search = searchTerm.toLowerCase();
-      const matchesSearch =
-        (p.name || '').toLowerCase().includes(search) || (p.id || '').toLowerCase().includes(search);
-      const matchesDept = selectedDepartment === 'all' || p.department === selectedDepartment;
-      const matchesUrgency =
-        selectedUrgency === 'all' ||
-        (selectedUrgency === 'critical' && p.triageLevel <= 2) ||
-        (selectedUrgency === 'normal' && p.triageLevel > 2);
-      return matchesSearch && matchesDept && matchesUrgency;
+  const filterPatients = useCallback(
+    (patients) =>
+      patients.filter((p) => {
+        const search = searchTerm.toLowerCase();
+        const matchesSearch =
+          (p.name || '').toLowerCase().includes(search) || (p.id || '').toLowerCase().includes(search);
+        const matchesDept = selectedDepartment === 'all' || p.department === selectedDepartment;
+        const matchesUrgency =
+          selectedUrgency === 'all' ||
+          (selectedUrgency === 'critical' && p.triageLevel <= 2) ||
+          (selectedUrgency === 'normal' && p.triageLevel > 2);
+        return matchesSearch && matchesDept && matchesUrgency;
+      }),
+    [searchTerm, selectedDepartment, selectedUrgency]
+  );
+
+  const patientNameById = useCallback(
+    (id) => {
+      if (!id) return '';
+      const pools = [unassignedPatients, myPatients, allAssignedPatients];
+      for (const pool of pools) {
+        const found = pool.find((p) => p.id === id);
+        if (found) return found.name || id;
+      }
+      return id;
+    },
+    [allAssignedPatients, myPatients, unassignedPatients]
+  );
+
+  const staffNameById = useCallback(
+    (id) => {
+      if (!id) return 'Unassigned';
+      const found = availableStaff.find((s) => s.id === id);
+      return found?.name || id;
+    },
+    [availableStaff]
+  );
+
+  const allPatientOptions = useCallback(() => {
+    const map = new Map();
+    [...unassignedPatients, ...myPatients, ...allAssignedPatients].forEach((p) => {
+      if (p?.id && !map.has(p.id)) {
+        map.set(p.id, { id: p.id, name: p.name || p.id });
+      }
     });
+    return Array.from(map.values());
+  }, [allAssignedPatients, myPatients, unassignedPatients]);
+
+  const togglePatientSelection = (id) => {
+    setSelectedPatients((prev) => (prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id]));
+  };
+
+  const getTriageBadge = (level) => {
+    const variant = level <= 1 ? 'danger' : level === 2 ? 'warning' : level === 3 ? 'info' : level === 4 ? 'success' : 'secondary';
+    return (
+      <Badge bg={variant}>
+        {typeof level === 'number' ? `Level ${level}` : level}
+      </Badge>
+    );
+  };
+
+  const getDepartmentBadge = (dept) => {
+    const map = {
+      emergency: 'danger',
+      surgery: 'primary',
+      internal: 'info',
+      pediatrics: 'success',
+      orthopedics: 'secondary',
+      obstetrics: 'warning',
+      icu: 'dark',
+      cardiology: 'danger',
+    };
+    const variant = map[dept] || 'secondary';
+    return <Badge bg={variant}>{(dept || 'dept').toUpperCase()}</Badge>;
+  };
 
   const getWorkloadBar = (current, max) => {
     const percentage = (current / max) * 100;
@@ -570,11 +576,6 @@ const PatientAssignmentModule = ({
   const priorityBadge = (p) => {
     const map = { urgent: 'danger', high: 'warning', normal: 'secondary', low: 'light' };
     return <Badge bg={map[p] || 'secondary'}>{(p || 'normal').toUpperCase()}</Badge>;
-  };
-
-  const statusBadge = (s) => {
-    const map = { todo: 'secondary', doing: 'info', done: 'success' };
-    return <Badge bg={map[s] || 'secondary'}>{(s || 'todo').toUpperCase()}</Badge>;
   };
 
   const addCoordinationTask = () => {
@@ -675,8 +676,8 @@ const PatientAssignmentModule = ({
     setCommNote('');
   };
 
-  const filteredUnassigned = useMemo(() => filterPatients(unassignedPatients), [unassignedPatients, searchTerm, selectedDepartment, selectedUrgency]);
-  const filteredAllAssigned = useMemo(() => filterPatients(allAssignedPatients), [allAssignedPatients, searchTerm, selectedDepartment, selectedUrgency]);
+  const filteredUnassigned = useMemo(() => filterPatients(unassignedPatients), [filterPatients, unassignedPatients]);
+  const filteredAllAssigned = useMemo(() => filterPatients(allAssignedPatients), [filterPatients, allAssignedPatients]);
 
   return (
     <>
