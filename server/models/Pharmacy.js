@@ -4,6 +4,9 @@ const PharmacySchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     address: String,
+    city: String,
+    province: String,
+    country: String,
     phone: String,
     active: { type: Boolean, default: true },
   },

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Card, Button, ListGroup, Badge, Modal, Form, Row, Col, Alert, Accordion, Table, InputGroup } from "react-bootstrap";
+import { filterPharmaciesForUser, formatPharmacyLabel } from "../utils/pharmacies";
 
 const DoctorDashboard = ({
   patients = [],
@@ -148,6 +149,10 @@ const DoctorDashboard = ({
     );
   }, [drugQuery, drugList]);
 
+  const visiblePharmacies = useMemo(() => {
+    return filterPharmaciesForUser(pharmacies, currentUser).filter((p) => p?.active !== false);
+  }, [pharmacies, currentUser]);
+
   return (
     <div className="d-grid gap-3">
       <Card className="card-plain">
@@ -157,14 +162,7 @@ const DoctorDashboard = ({
               <Card.Title className="mb-0">{t("Doctors Workspace")}</Card.Title>
               <Card.Subtitle className="text-muted">{t("Your patients and schedule")}</Card.Subtitle>
             </div>
-            <div className="d-flex gap-2">
-              <Button size="sm" variant="outline-secondary" onClick={() => onOpenPatients?.()}>
-                {t('Patients (view)')}
-              </Button>
-              <Button size="sm" variant="outline-dark" onClick={() => onOpenAnalytics?.()}>
-                {t('Analytics')}
-              </Button>
-            </div>
+            <div className="d-flex gap-2" />
           </div>
           <Card.Text>{t("Review charts, manage visits, and coordinate care.")}</Card.Text>
         </Card.Body>
@@ -470,8 +468,8 @@ const DoctorDashboard = ({
                         onChange={(e) => setSelectedPharmacyId(e.target.value)}
                       >
                         <option value="">{t("Select pharmacy")}</option>
-                        {pharmacies.map((ph) => (
-                          <option key={ph.id} value={ph.id}>{ph.name}</option>
+                        {visiblePharmacies.map((ph) => (
+                          <option key={ph.id} value={ph.id}>{formatPharmacyLabel(ph) || ph.name}</option>
                         ))}
                         <option value="other">{t("Other (specify)")}</option>
                       </Form.Select>

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Card, Form, Button, Badge, ListGroup, Stack, Row, Col } from 'react-bootstrap';
-import { getClinicConfig, getClinicData, updateClinicData } from '../config/dataStore';
+import { getClinicConfig, getClinicData, getSeedPharmacies, updateClinicData } from '../config/dataStore';
 import { setFeatureFlag, setBanner, setAppointmentTypes } from '../config/AdminSettings';
 
 const AdminPortal = ({ t = (str) => str }) => {
@@ -54,8 +54,7 @@ const AdminPortal = ({ t = (str) => str }) => {
   };
 
   const resetPharmacies = () => {
-    const seeds = getClinicData().pharmacies || [];
-    const next = updateClinicData((prev) => ({ ...prev, pharmacies: seeds }));
+    const next = updateClinicData((prev) => ({ ...prev, pharmacies: getSeedPharmacies() }));
     setData(next);
   };
 
@@ -71,18 +70,11 @@ const AdminPortal = ({ t = (str) => str }) => {
 
   const products = [
     {
-      key: 'telemedicine',
-      title: 'Telemedicine',
-      unit: 'Visit / Provider chart',
-      focus: 'Doctors, providers, clinic visits',
-      actions: ['Appointments', 'Labs', 'Chart access'],
-    },
-    {
       key: 'telehealth',
       title: 'Telehealth',
-      unit: 'Visit / Encounter / Triage',
-      focus: 'Telehealth nurses & coordinators',
-      actions: ['Triage queue', 'Visit queue', 'Lab review'],
+      unit: 'Visit / Encounter / Chart / Triage',
+      focus: 'Doctors + nurses working from the same data',
+      actions: ['Doctor view', 'Nurse view', 'Labs', 'Charts'],
     },
     {
       key: 'homecare',

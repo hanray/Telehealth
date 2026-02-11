@@ -14,6 +14,7 @@ import {
   Row,
   Col,
 } from 'react-bootstrap';
+import { formatPharmacyLabel } from '../utils/pharmacies';
 
 const MedicalRecordModule = ({
   show,
@@ -868,7 +869,7 @@ const MedicalRecordModule = ({
                           >
                             <option value="">Select pharmacy</option>
                             {pharmacies.map((ph) => (
-                              <option key={ph.id} value={ph.id}>{ph.name}</option>
+                              <option key={ph.id} value={ph.id}>{formatPharmacyLabel(ph) || ph.name}</option>
                             ))}
                             <option value="other">Other (specify)</option>
                           </Form.Select>

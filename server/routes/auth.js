@@ -1,13 +1,37 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
-const { findByEmail, addUser, nextId, allUsers } = require('../utils/userStore');
+const { findByEmail, addUser, nextId, allUsers, updateUser } = require('../utils/userStore');
+const { sendEmail } = require('../utils/mailer');
 
 const ALLOWED_ROLES = ['patient', 'doctor', 'nurse', 'pharmacy', 'admin'];
-const SUPPORTED_COUNTRIES = ['US', 'CA', 'GB', 'AU', 'IN', 'SG', 'PH', 'BR', 'MX', 'ZA'];
+const SUPPORTED_COUNTRIES = ['US', 'CA', 'GB', 'AU', 'IN', 'SG', 'PH', 'BR', 'MX', 'ZA', 'GH'];
 const DEMO_LABEL = 'Demo / MVP auth';
+
+const sha256Hex = (value) => crypto.createHash('sha256').update(String(value || '')).digest('hex');
+const getPrimaryClientUrl = () => {
+	const raw = process.env.CORS_ORIGIN || process.env.CLIENT_URL || 'http://localhost:3000';
+	return raw.split(',').map((s) => s.trim()).filter(Boolean)[0] || 'http://localhost:3000';
+};
+
+const getPublicApiBase = (req) => {
+	const env = String(process.env.API_PUBLIC_BASE || '').trim().replace(/\/$/, '');
+	if (env) return env;
+	const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'http').toString().split(',')[0].trim();
+	const host = (req.headers['x-forwarded-host'] || req.get('host') || '').toString().split(',')[0].trim();
+	if (!host) return 'http://localhost:5000';
+	return `${proto}://${host}`;
+};
+
+const shouldExposeMagicLinkInResponse = () => {
+	const flag = String(process.env.EXPOSE_MAGIC_LINK_IN_RESPONSE || '').toLowerCase();
+	if (flag === 'true' || flag === '1' || flag === 'yes') return true;
+	if (flag === 'false' || flag === '0' || flag === 'no') return false;
+	return process.env.NODE_ENV !== 'production';
+};
 
 const handleSignup = async (req, res) => {
 	try {
@@ -120,6 +144,103 @@ router.post('/login', async (req, res) => {
 	} catch (err) {
 		console.error('[auth/login] error', err);
 		return res.status(500).json({ error: 'Failed to login', context: DEMO_LABEL });
+	}
+});
+
+// Magic link (forgot password) - sends a one-time sign-in link.
+// Always returns OK to avoid account enumeration.
+router.post('/forgot-password', async (req, res) => {
+	try {
+		const { email } = req.body || {};
+		const normalizedEmail = String(email || '').trim().toLowerCase();
+		if (!normalizedEmail) {
+			return res.status(200).json({ ok: true, link: null, context: DEMO_LABEL });
+		}
+
+		const token = crypto.randomBytes(32).toString('hex');
+		const tokenHash = sha256Hex(token);
+		const apiBase = getPublicApiBase(req);
+		const link = `${apiBase}/api/auth/magic?token=${encodeURIComponent(token)}`;
+
+		const user = await findByEmail(normalizedEmail);
+		if (user) {
+			const expiresAt = new Date(Date.now() + 1000 * 60 * 20).toISOString(); // 20 minutes
+			const nextUser = {
+				...user,
+				magicLink: {
+					tokenHash,
+					expiresAt,
+					consumedAt: null,
+					createdAt: new Date().toISOString(),
+				},
+			};
+
+			await updateUser(nextUser);
+
+			const subject = 'Your Telehealth sign-in link';
+			const text = `Use this link to sign in to Telehealth (expires in 20 minutes):\n\n${link}\n\nIf you did not request this, you can ignore this email.`;
+
+			await sendEmail({
+				to: nextUser.email,
+				subject,
+				text,
+				html: `<p>Use this link to sign in to Telehealth (expires in 20 minutes):</p><p><a href="${link}">${link}</a></p><p>If you did not request this, you can ignore this email.</p>`,
+			});
+		}
+
+		return res.status(200).json({ ok: true, link: shouldExposeMagicLinkInResponse() ? link : null, context: DEMO_LABEL });
+	} catch (err) {
+		console.error('[auth/forgot-password] error', err);
+		// Still return OK so we don't leak info.
+		return res.status(200).json({ ok: true, link: null, context: DEMO_LABEL });
+	}
+});
+
+// Consumes a magic link token and signs the user in (sets session), then redirects to the client.
+router.get('/magic', async (req, res) => {
+	const clientBase = getPrimaryClientUrl().replace(/\/$/, '');
+	const redirectTo = `${clientBase}/?magic=done`;
+	try {
+		const token = String(req.query?.token || '').trim();
+		if (!token) {
+			return res.redirect(redirectTo);
+		}
+
+		const tokenHash = sha256Hex(token);
+		const users = await allUsers();
+		const now = Date.now();
+
+		const user = users.find((u) => u?.magicLink?.tokenHash === tokenHash);
+		const expiresAtMs = user?.magicLink?.expiresAt ? Date.parse(user.magicLink.expiresAt) : 0;
+		const isExpired = !expiresAtMs || Number.isNaN(expiresAtMs) || expiresAtMs <= now;
+		const isConsumed = !!user?.magicLink?.consumedAt;
+
+		if (!user || isExpired || isConsumed) {
+			return res.redirect(redirectTo);
+		}
+
+		const nextUser = {
+			...user,
+			magicLink: {
+				...user.magicLink,
+				tokenHash: null,
+				consumedAt: new Date().toISOString(),
+			},
+		};
+		await updateUser(nextUser);
+
+		req.session.user = {
+			id: nextUser.id,
+			email: nextUser.email,
+			role: nextUser.role,
+			org_id: nextUser.org_id || null,
+			patientId: nextUser.patientId || null,
+		};
+
+		return res.redirect(redirectTo);
+	} catch (err) {
+		console.error('[auth/magic] error', err);
+		return res.redirect(redirectTo);
 	}
 });
 

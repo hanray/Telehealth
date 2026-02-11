@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Card, Button, ListGroup, Badge, Modal, Form, Row, Col, Alert, Table } from 'react-bootstrap';
+import { filterPharmaciesForUser, formatPharmacyLabel } from '../utils/pharmacies';
 
 const formatList = (value) => {
   if (!value) return '—';
@@ -13,9 +14,22 @@ const formatList = (value) => {
   return value;
 };
 
-const DASHBOARD_CARD_KEYS = ['recentTests', 'recentMessages', 'activePrescriptions', 'careSnapshot'];
+const DASHBOARD_CARD_KEYS = ['preferredPharmacy', 'recentTests', 'recentMessages', 'activePrescriptions', 'careSnapshot'];
 
-const PatientDashboard = ({ patient, appointments = [], labs = [], prescriptions = [], pharmacies = [], notifications = [], onOpenRecords, onOpenLab, onOpenChat, t = (str) => str }) => {
+const PatientDashboard = ({
+  patient,
+  appointments = [],
+  labs = [],
+  prescriptions = [],
+  pharmacies = [],
+  notifications = [],
+  currentUser,
+  onUpdatePreferredPharmacy,
+  onOpenRecords,
+  onOpenLab,
+  onOpenChat,
+  t = (str) => str,
+}) => {
   const [showRequest, setShowRequest] = useState(false);
   const [requestText, setRequestText] = useState('');
   const [cardOrder, setCardOrder] = useState(DASHBOARD_CARD_KEYS);
@@ -23,8 +37,34 @@ const PatientDashboard = ({ patient, appointments = [], labs = [], prescriptions
   const [requestTime, setRequestTime] = useState('');
   const dragKeyRef = useRef(null);
 
+  const [pharmacyQuery, setPharmacyQuery] = useState('');
+  const [preferredPharmacyId, setPreferredPharmacyId] = useState('');
+  const [preferredPharmacyOther, setPreferredPharmacyOther] = useState('');
+  const [pharmacySavedBanner, setPharmacySavedBanner] = useState('');
+
   const record = useMemo(() => patient?.medicalRecord || {}, [patient]);
   const patientId = patient?.id || null;
+
+  useEffect(() => {
+    setPreferredPharmacyId(patient?.preferredPharmacyId || '');
+    setPreferredPharmacyOther(patient?.preferredPharmacyOtherText || '');
+  }, [patient?.preferredPharmacyId, patient?.preferredPharmacyOtherText]);
+
+  const visiblePharmacies = useMemo(() => {
+    const list = filterPharmaciesForUser(pharmacies, currentUser).filter((p) => p?.active !== false);
+    const q = String(pharmacyQuery || '').trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((p) => {
+      const hay = [p.name, p.address, p.city, p.province, p.country].map((v) => String(v || '').toLowerCase());
+      return hay.some((v) => v.includes(q));
+    });
+  }, [pharmacies, currentUser, pharmacyQuery]);
+
+  const preferredPharmacyLabel = useMemo(() => {
+    if (!preferredPharmacyId || preferredPharmacyId === 'other') return null;
+    const found = (pharmacies || []).find((p) => p.id === preferredPharmacyId);
+    return formatPharmacyLabel(found) || found?.name || preferredPharmacyId;
+  }, [pharmacies, preferredPharmacyId]);
 
   const mineAppts = patientId ? appointments.filter((a) => a.patientId === patientId) : [];
   const mineLabs = patientId ? labs.filter((l) => l.patientId === patientId) : [];
@@ -152,6 +192,96 @@ const PatientDashboard = ({ patient, appointments = [], labs = [], prescriptions
 
   const renderCardByKey = (key) => {
     switch (key) {
+      case 'preferredPharmacy':
+        return (
+          <Card className="card-plain h-100">
+            <Card.Body>
+              <Card.Title>{t('Preferred Pharmacy')}</Card.Title>
+              <Card.Text className="text-muted" style={{ fontSize: 13 }}>
+                {t('Choose where prescriptions should be sent by default.')}
+              </Card.Text>
+
+              {pharmacySavedBanner && (
+                <Alert variant="success" onClose={() => setPharmacySavedBanner('')} dismissible>
+                  {pharmacySavedBanner}
+                </Alert>
+              )}
+
+              <div className="mb-2">
+                <div className="text-muted small">{t('Current')}</div>
+                <div className="fw-semibold">
+                  {preferredPharmacyId === 'other'
+                    ? (preferredPharmacyOther || t('Other'))
+                    : (preferredPharmacyLabel || t('Not set'))}
+                </div>
+              </div>
+
+              <Form.Group className="mb-2">
+                <Form.Label className="small text-muted">{t('Search pharmacies')}</Form.Label>
+                <Form.Control
+                  value={pharmacyQuery}
+                  onChange={(e) => setPharmacyQuery(e.target.value)}
+                  placeholder={t('Search by name, city, address')}
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-2">
+                <Form.Label className="small text-muted">{t('Select pharmacy')}</Form.Label>
+                <Form.Select value={preferredPharmacyId} onChange={(e) => setPreferredPharmacyId(e.target.value)}>
+                  <option value="">{t('Select pharmacy')}</option>
+                  {visiblePharmacies.map((ph) => (
+                    <option key={ph.id} value={ph.id}>{formatPharmacyLabel(ph) || ph.name}</option>
+                  ))}
+                  <option value="other">{t('Other (specify)')}</option>
+                </Form.Select>
+              </Form.Group>
+
+              {preferredPharmacyId === 'other' && (
+                <Form.Group className="mb-2">
+                  <Form.Label className="small text-muted">{t('Other pharmacy details')}</Form.Label>
+                  <Form.Control
+                    value={preferredPharmacyOther}
+                    onChange={(e) => setPreferredPharmacyOther(e.target.value)}
+                    placeholder={t('Name / address / phone')}
+                  />
+                </Form.Group>
+              )}
+
+              <div className="d-flex gap-2 mt-3">
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    if (!patientId) return;
+                    if (preferredPharmacyId === 'other' && !String(preferredPharmacyOther || '').trim()) return;
+                    onUpdatePreferredPharmacy?.({
+                      patientId,
+                      preferredPharmacyId: preferredPharmacyId || '',
+                      preferredPharmacyOtherText: preferredPharmacyId === 'other' ? String(preferredPharmacyOther || '').trim() : '',
+                    });
+                    setPharmacySavedBanner(t('Preferred pharmacy saved.'));
+                  }}
+                >
+                  {t('Save')}
+                </Button>
+                <Button
+                  variant="outline-secondary"
+                  onClick={() => {
+                    setPreferredPharmacyId(patient?.preferredPharmacyId || '');
+                    setPreferredPharmacyOther(patient?.preferredPharmacyOtherText || '');
+                    setPharmacyQuery('');
+                    setPharmacySavedBanner('');
+                  }}
+                >
+                  {t('Reset')}
+                </Button>
+              </div>
+
+              <div className="text-muted small mt-2">
+                {t('For MVP, results are limited to your country. Admins can search across all countries in the database.')}
+              </div>
+            </Card.Body>
+          </Card>
+        );
       case 'recentTests':
         return (
           <Card className="card-plain h-100">

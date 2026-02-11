@@ -17,6 +17,17 @@
       "password_hash": "$2a$10$F7pdEixNv.KclXVTR4BkiepqCanp.DNF0ku8.IP3ALU036dhGIjkG",
       "org_id": null,
       "patientId": "patient-001"
+    },
+    {
+      "id": "usr_mkese82f_fuj3",
+      "email": "hdorgy2@gmail.com",
+      "role": "patient",
+      "name": "Henry Djorgee",
+      "product": "homecare",
+      "password_hash": "$2a$10$6y9cHDjfVCckKUMZMU7b5uw.BXPkAaEoZWq.gmA3h.BfBvt2a1AN6",
+      "org_id": null,
+      "patientId": "patient-002",
+      "country": "CA"
     }
   ]
 }

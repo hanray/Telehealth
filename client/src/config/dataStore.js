@@ -2,10 +2,49 @@
 const DATA_KEY = 'telehealth.clinicData.v5';
 const CONFIG_KEY = 'telehealth.config.v1';
 
+const TRIAL_LENGTH_DAYS = 14;
+
+const isoNow = () => new Date().toISOString();
+
+const addDaysIso = (iso, days) => {
+  const base = iso ? new Date(iso) : new Date();
+  return new Date(base.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
+};
+
+const normalizeTier = (tier) => {
+  const v = String(tier || '').trim().toLowerCase();
+  return v === 'pro' ? 'pro' : 'free';
+};
+
+const normalizeStatus = (status) => {
+  const v = String(status || '').trim().toLowerCase();
+  if (v === 'trialing') return 'trialing';
+  if (v === 'expired') return 'expired';
+  return 'active';
+};
+
+const normalizeSubscription = (input, fallback) => {
+  const prev = fallback || {};
+  const sub = input || {};
+  const tier = normalizeTier(sub.tier ?? prev.tier);
+  const status = normalizeStatus(sub.status ?? prev.status);
+  const startedAt = sub.startedAt || prev.startedAt || isoNow();
+  const trialEndsAt = sub.trialEndsAt || prev.trialEndsAt || null;
+  const expiresAt = sub.expiresAt || prev.expiresAt || null;
+  return { tier, status, startedAt, trialEndsAt, expiresAt };
+};
+
 const defaultConfig = {
   clinicName: 'Skyward Telehealth',
   banner: null,
   appointmentTypes: ['General Consultation', 'Follow-up', 'Lab Review', 'Prescription Refill'],
+  subscription: {
+    tier: 'free',
+    status: 'active',
+    startedAt: isoNow(),
+    trialEndsAt: null,
+    expiresAt: null,
+  },
   features: {
     chat: true,
     labs: true,
@@ -15,10 +54,25 @@ const defaultConfig = {
 };
 
 const seedPharmacies = [
-  { id: 'pharm1', name: 'City Pharmacy', address: '123 Main St', phone: '+1-555-1111', active: true, updatedAt: new Date().toISOString() },
-  { id: 'pharm2', name: 'Community Pharmacy', address: '45 Elm Ave', phone: '+1-555-2222', active: true, updatedAt: new Date().toISOString() },
-  { id: 'pharm3', name: 'Downtown Pharmacy', address: '77 Market Rd', phone: '+1-555-3333', active: true, updatedAt: new Date().toISOString() },
+  // Canada (Ontario)
+  { id: 'pharm1', name: 'Shoppers Drug Mart', address: '100 King St W', city: 'Toronto', province: 'ON', country: 'CA', phone: '+1-416-555-0101', active: true, updatedAt: new Date().toISOString() },
+  { id: 'pharm2', name: 'Rexall', address: '250 Yonge St', city: 'Toronto', province: 'ON', country: 'CA', phone: '+1-416-555-0102', active: true, updatedAt: new Date().toISOString() },
+  { id: 'pharm3', name: 'Pharmasave', address: '10 Dundas St E', city: 'Toronto', province: 'ON', country: 'CA', phone: '+1-416-555-0103', active: true, updatedAt: new Date().toISOString() },
+  { id: 'ca_on_guardian_ottawa', name: 'Guardian Pharmacy', address: '200 Bank St', city: 'Ottawa', province: 'ON', country: 'CA', phone: '+1-613-555-0104', active: true, updatedAt: new Date().toISOString() },
+  { id: 'ca_on_ida_mississauga', name: 'IDA Pharmacy', address: '90 Burnhamthorpe Rd W', city: 'Mississauga', province: 'ON', country: 'CA', phone: '+1-905-555-0105', active: true, updatedAt: new Date().toISOString() },
+  { id: 'ca_on_walmart_brampton', name: 'Walmart Pharmacy', address: '100 Queen St E', city: 'Brampton', province: 'ON', country: 'CA', phone: '+1-905-555-0106', active: true, updatedAt: new Date().toISOString() },
+  { id: 'ca_on_costco_markham', name: 'Costco Pharmacy', address: '15 Yorktech Dr', city: 'Markham', province: 'ON', country: 'CA', phone: '+1-905-555-0107', active: true, updatedAt: new Date().toISOString() },
+  { id: 'ca_on_loblaws_northyork', name: 'Loblaws Pharmacy', address: '4000 Bathurst St', city: 'North York', province: 'ON', country: 'CA', phone: '+1-416-555-0108', active: true, updatedAt: new Date().toISOString() },
+
+  // Ghana
+  { id: 'gh_accra_ernest_chemists', name: 'Ernest Chemists', address: 'Oxford St (Osu)', city: 'Accra', province: 'Greater Accra', country: 'GH', phone: '+233-30-555-0101', active: true, updatedAt: new Date().toISOString() },
+  { id: 'gh_accra_melcom_pharmacy', name: 'Melcom Pharmacy', address: 'Spintex Rd', city: 'Accra', province: 'Greater Accra', country: 'GH', phone: '+233-30-555-0102', active: true, updatedAt: new Date().toISOString() },
+  { id: 'gh_kumasi_olympia_pharmacy', name: 'Olympia Pharmacy', address: 'Adum', city: 'Kumasi', province: 'Ashanti', country: 'GH', phone: '+233-32-555-0103', active: true, updatedAt: new Date().toISOString() },
+  { id: 'gh_takoradi_community_pharmacy', name: 'Community Pharmacy', address: 'Market Circle', city: 'Sekondi-Takoradi', province: 'Western', country: 'GH', phone: '+233-31-555-0104', active: true, updatedAt: new Date().toISOString() },
+  { id: 'gh_tamale_northern_pharmacy', name: 'Northern Pharmacy', address: 'Central Business District', city: 'Tamale', province: 'Northern', country: 'GH', phone: '+233-37-555-0105', active: true, updatedAt: new Date().toISOString() },
 ];
+
+export const getSeedPharmacies = () => seedPharmacies.map((p) => ({ ...p }));
 
 const seedPlans = [
   { id: 'plan_basic', name: 'Basic', price: 20, currency: 'CAD', interval: 'month', active: true },
@@ -388,7 +442,65 @@ export const updateClinicConfig = (updater) => {
   return next;
 };
 
-export const getClinicData = () => readLocal(DATA_KEY, defaultData);
+export const getSubscription = () => {
+  const cfg = getClinicConfig();
+  return normalizeSubscription(cfg?.subscription, defaultConfig.subscription);
+};
+
+export const updateSubscription = (updater) => {
+  return updateClinicConfig((prev) => {
+    const current = normalizeSubscription(prev?.subscription, defaultConfig.subscription);
+    const nextPartial = typeof updater === 'function' ? updater(current) : updater;
+    const next = normalizeSubscription({ ...current, ...(nextPartial || {}) }, current);
+    return { ...prev, subscription: next };
+  });
+};
+
+export const ensureSubscriptionFresh = () => {
+  const now = Date.now();
+  const sub = getSubscription();
+
+  if (sub.status === 'trialing' && sub.trialEndsAt) {
+    const endsAt = new Date(sub.trialEndsAt).getTime();
+    if (Number.isFinite(endsAt) && now > endsAt) {
+      updateSubscription({ tier: 'free', status: 'expired', expiresAt: isoNow() });
+    }
+  }
+
+  return getSubscription();
+};
+
+export const startProTrial = () => {
+  const nowIso = isoNow();
+  const trialEndsAt = addDaysIso(nowIso, TRIAL_LENGTH_DAYS);
+  updateSubscription({ tier: 'pro', status: 'trialing', startedAt: nowIso, trialEndsAt, expiresAt: null });
+  return getSubscription();
+};
+
+export const upgradeToProDemo = () => {
+  const nowIso = isoNow();
+  updateSubscription({ tier: 'pro', status: 'active', startedAt: nowIso, trialEndsAt: null, expiresAt: null });
+  return getSubscription();
+};
+
+export const downgradeToFree = () => {
+  const nowIso = isoNow();
+  updateSubscription({ tier: 'free', status: 'active', startedAt: nowIso, trialEndsAt: null, expiresAt: null });
+  return getSubscription();
+};
+
+export const getClinicData = () => {
+  const current = readLocal(DATA_KEY, defaultData);
+  const next = { ...defaultData, ...(current || {}) };
+
+  // Ensure pharmacy list exists for older localStorage payloads.
+  const existing = Array.isArray(next.pharmacies) ? next.pharmacies : [];
+  if (!existing.length) {
+    next.pharmacies = getSeedPharmacies();
+  }
+
+  return next;
+};
 
 export const updateClinicData = (updater) => {
   const current = getClinicData();

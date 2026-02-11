@@ -11,6 +11,7 @@ import DoctorDashboard from './components/DoctorDashboard';
 import NurseDashboard from './components/NurseDashboard';
 import PSWDashboard from './components/PSWDashboard';
 import TelehealthWorkspace from './components/TelehealthWorkspace';
+import TelehealthShell from './components/TelehealthShell';
 import TelehealthVisitSummary from './components/TelehealthVisitSummary';
 import AdminPortal from './components/AdminPortal';
 import PatientAssignmentModule from './components/PatientAssignmentModule';
@@ -19,8 +20,12 @@ import AppointmentModal from './components/AppointmentModal';
 import InsuranceModal from './components/InsuranceModal';
 import RefillModal from './components/RefillModal';
 import ProductPicker, { PRODUCT_CATALOG } from './components/ProductPicker';
-import { getClinicData, updateClinicData, getClinicConfig } from './config/dataStore';
+import { getClinicData, updateClinicData, getClinicConfig, onClinicConfigChange, ensureSubscriptionFresh, getSubscription, startProTrial, upgradeToProDemo, downgradeToFree, updateSubscription } from './config/dataStore';
 import { createAppointment } from './utils/appointmentUtils';
+import { canAccess } from './utils/entitlements';
+import ProFeatureGateModal from './components/ProFeatureGateModal';
+import SubscriptionSettingsModal from './components/SubscriptionSettingsModal';
+import SubscriptionOnboarding from './components/SubscriptionOnboarding';
 
 const SUPPORTED_LANGUAGES = [
   { code: 'en-US', label: 'English (US)', flag: '🇺🇸' },
@@ -393,6 +398,7 @@ const SUPPORTED_COUNTRIES = [
   { code: 'BR', label: 'Brazil' },
   { code: 'MX', label: 'Mexico' },
   { code: 'ZA', label: 'South Africa' },
+  { code: 'GH', label: 'Ghana' },
 ];
 
 const API_BASE =
@@ -431,22 +437,62 @@ const normalizeList = (items) => Array.isArray(items) ? items.map(normalizeId) :
 
 const PRODUCT_KEYS = PRODUCT_CATALOG.map((p) => p.key);
 
+const LEGACY_PRODUCT_ALIASES = {
+  telemedicine: 'telehealth',
+};
+
+const normalizeProductKey = (product) => {
+  const key = String(product || '').trim().toLowerCase();
+  return LEGACY_PRODUCT_ALIASES[key] || key || null;
+};
+
 const getInitialProductFromPath = () => {
   if (typeof window === 'undefined') return null;
   const slug = window.location.pathname.replace(/^\/+/, '').split('/')[0];
-  return PRODUCT_KEYS.includes(slug) ? slug : null;
+  const normalized = normalizeProductKey(slug);
+  return PRODUCT_KEYS.includes(normalized) ? normalized : null;
 };
 
 const getInitialLoginView = () => typeof window !== 'undefined' && window.location.pathname === '/login';
 const getInitialSignupView = () => typeof window !== 'undefined' && window.location.pathname === '/signup';
 
-const resolvePortalFromProduct = (product, role) => {
-  if (!product && role) return role;
-  if (product === 'admin') return 'admin';
-  if (product === 'telemedicine') return role === 'patient' ? 'patient' : 'doctor';
-  if (product === 'telehealth' || product === 'homecare') return role === 'patient' ? 'patient' : 'nurse';
-  if (product === 'myhealth') return 'patient';
+const resolvePortalFromProduct = (product, user) => {
+  const normalizedProduct = normalizeProductKey(product);
+  const role = String(user?.role || '').trim().toLowerCase();
+  const viewMode = String(user?.viewMode || '').trim().toLowerCase();
+
+  if (!normalizedProduct && role) return role;
+  if (normalizedProduct === 'admin') return 'admin';
+  if (normalizedProduct === 'myhealth') return 'patient';
+
+  if (normalizedProduct === 'telehealth') {
+    if (role === 'patient') return 'patient';
+    return 'telehealth';
+  }
+
+  if (normalizedProduct === 'homecare') {
+    if (role === 'patient') return 'patient';
+    if (role === 'psw') return 'psw';
+    return 'nurse';
+  }
+
+  if (role === 'admin' && viewMode) return viewMode;
   return role || null;
+};
+
+const decorateUserForView = (rawUser) => {
+  if (!rawUser) return rawUser;
+  const role = String(rawUser.role || '').trim().toLowerCase();
+
+  if (role === 'admin') {
+    const viewMode = String(rawUser.viewMode || '').trim().toLowerCase();
+    return { ...rawUser, role, viewMode: viewMode === 'nurse' ? 'nurse' : 'doctor' };
+  }
+
+  if (role === 'doctor' || role === 'specialist' || role === 'pharmacist') return { ...rawUser, role, viewMode: 'doctor' };
+  if (role === 'nurse' || role === 'psw') return { ...rawUser, role, viewMode: 'nurse' };
+  if (role) return { ...rawUser, role };
+  return rawUser;
 };
 
 const getProductTitle = (product) => PRODUCT_CATALOG.find((p) => p.key === product)?.title || null;
@@ -462,7 +508,7 @@ const App = () => {
     if (fromPath) return fromPath;
     if (typeof window === 'undefined') return null;
     try {
-      return localStorage.getItem('desiredProduct');
+      return normalizeProductKey(localStorage.getItem('desiredProduct'));
     } catch (err) {
       return null;
     }
@@ -472,6 +518,8 @@ const App = () => {
   const [showPasswordReset, setShowPasswordReset] = useState(() => typeof window !== 'undefined' && window.location.pathname === '/reset-password');
   const [passwordResetSubmitted, setPasswordResetSubmitted] = useState(false);
   const [passwordResetEmail, setPasswordResetEmail] = useState('');
+  const [passwordResetSending, setPasswordResetSending] = useState(false);
+  const [passwordResetLink, setPasswordResetLink] = useState('');
   const [selectedRole, setSelectedRole] = useState('patient');
   const [customRole, setCustomRole] = useState('');
   const [selectedLanguage, setSelectedLanguage] = useState(() => {
@@ -496,13 +544,14 @@ const App = () => {
 
   const [clinicData, setClinicData] = useState(() => getClinicData());
   const [clinicConfig, setClinicConfig] = useState(() => getClinicConfig());
+  const [subscription, setSubscription] = useState(() => getSubscription());
   const [prescriptions, setPrescriptions] = useState(() => getClinicData().prescriptions || []);
   const [pharmacies, setPharmacies] = useState(() => getClinicData().pharmacies || []);
   const [notifications, setNotifications] = useState(() => getClinicData().notifications || []);
   const [intakeStatusByPatientId, setIntakeStatusByPatientId] = useState(() => getClinicData().intakeStatusByPatientId || {});
   const [, setTransactions] = useState(() => getClinicData().transactions || []);
-  const [plans, setPlans] = useState(() => getClinicData().plans || []);
-  const [subscriptions, setSubscriptions] = useState(() => getClinicData().subscriptions || []);
+  const [, setPlans] = useState(() => getClinicData().plans || []);
+  const [, setSubscriptions] = useState(() => getClinicData().subscriptions || []);
 
   const [showChat, setShowChat] = useState(false);
   const [chatRecipients, setChatRecipients] = useState(null);
@@ -517,6 +566,11 @@ const App = () => {
   const [quickActionMessage, setQuickActionMessage] = useState('');
   const [quickActionVariant, setQuickActionVariant] = useState('info');
   const [showSettings, setShowSettings] = useState(false);
+  const [showSubscriptionSettings, setShowSubscriptionSettings] = useState(false);
+  const [showSubscriptionOnboarding, setShowSubscriptionOnboarding] = useState(false);
+  const pendingPostAuthRef = React.useRef(null);
+  const [proGate, setProGate] = useState({ show: false, featureKey: null });
+  const pendingProActionRef = React.useRef(null);
   const [showApptModal, setShowApptModal] = useState(false);
   const [showInsuranceModal, setShowInsuranceModal] = useState(false);
   const [showRefillModal, setShowRefillModal] = useState(false);
@@ -533,13 +587,16 @@ const App = () => {
     const init = async () => {
       try {
         setLoadingUser(true);
+        const sub = ensureSubscriptionFresh();
+        setSubscription(sub);
         const data = await fetchJson('/api/auth/me');
-        setUser(data.user);
-        const targetProduct = desiredProduct || (data.user?.role === 'admin' ? 'admin' : null);
+        const nextUser = decorateUserForView(data.user);
+        setUser(nextUser);
+        const targetProduct = normalizeProductKey(desiredProduct) || (nextUser?.role === 'admin' ? 'telehealth' : null);
         if (targetProduct && targetProduct !== desiredProduct) {
           setDesiredProduct(targetProduct);
         }
-        const portal = resolvePortalFromProduct(targetProduct, data.user?.role);
+        const portal = resolvePortalFromProduct(targetProduct, nextUser);
         setActivePortal(portal);
         setShowLogin(false);
         if (portal && targetProduct) {
@@ -559,6 +616,27 @@ const App = () => {
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    return onClinicConfigChange((next) => {
+      setClinicConfig(next);
+      setSubscription(getSubscription());
+    });
+  }, []);
+
+  const requireAccess = (featureKey, action) => {
+    const fresh = ensureSubscriptionFresh();
+    setSubscription(fresh);
+
+    if (canAccess(featureKey, fresh)) {
+      action?.();
+      return true;
+    }
+
+    pendingProActionRef.current = action || null;
+    setProGate({ show: true, featureKey });
+    return false;
+  };
 
   useEffect(() => {
     if (showSignup && showPasswordReset) {
@@ -609,9 +687,10 @@ const App = () => {
       try {
         const data = await fetchJson('/api/pharmacies');
         const normalized = normalizeList(data?.pharmacies);
-        setPharmacies(normalized);
-        setClinicData((prev) => ({ ...prev, pharmacies: normalized }));
-        updateClinicData((prev) => ({ ...prev, pharmacies: normalized }));
+        const resolved = (normalized && normalized.length) ? normalized : (getClinicData().pharmacies || []);
+        setPharmacies(resolved);
+        setClinicData((prev) => ({ ...prev, pharmacies: resolved }));
+        updateClinicData((prev) => ({ ...prev, pharmacies: resolved }));
       } catch (err) {
         const local = getClinicData().pharmacies || [];
         setPharmacies(local);
@@ -893,12 +972,15 @@ const App = () => {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
-      setUser(data.user);
-      const targetProduct = desiredProduct || (data.user?.role === 'admin' ? 'admin' : null);
+      const sub = ensureSubscriptionFresh();
+      setSubscription(sub);
+      const nextUser = decorateUserForView(data.user);
+      setUser(nextUser);
+      const targetProduct = normalizeProductKey(desiredProduct) || (nextUser?.role === 'admin' ? 'telehealth' : null);
       if (targetProduct && targetProduct !== desiredProduct) {
         setDesiredProduct(targetProduct);
       }
-      const portal = resolvePortalFromProduct(targetProduct, data.user?.role);
+      const portal = resolvePortalFromProduct(targetProduct, nextUser);
       setActivePortal(portal);
       setShowLogin(false);
       setShowSignup(false);
@@ -928,7 +1010,7 @@ const App = () => {
       setAuthError('Please enter a role name when choosing Other.');
       return;
     }
-    const productChoice = form.get('product') || desiredProduct || '';
+    const productChoice = normalizeProductKey(form.get('product') || desiredProduct || '');
     try {
       setAuthError('');
       setLoadingUser(true);
@@ -944,26 +1026,48 @@ const App = () => {
           product: productChoice || null,
         }),
       });
-      setUser(data.user);
-      const targetProduct = productChoice || desiredProduct || (data.user?.role === 'admin' ? 'admin' : null);
+      const sub = ensureSubscriptionFresh();
+      setSubscription(sub);
+      const nextUser = decorateUserForView(data.user);
+      setUser(nextUser);
+      const targetProduct = productChoice || normalizeProductKey(desiredProduct) || (nextUser?.role === 'admin' ? 'telehealth' : null);
       if (targetProduct && targetProduct !== desiredProduct) {
         setDesiredProduct(targetProduct);
       }
-      const portal = resolvePortalFromProduct(targetProduct, data.user?.role);
-      setActivePortal(portal);
+      const portal = resolvePortalFromProduct(targetProduct, nextUser);
+      // New flow: after signup, require a subscription choice (Free vs Pro) before entering the app.
+      pendingPostAuthRef.current = { portal, targetProduct };
+      setActivePortal(null);
       setShowLogin(false);
       setShowSignup(false);
-      if (portal && targetProduct) {
-        window.history.replaceState({}, '', `/${targetProduct}`);
-      } else {
-        window.history.replaceState({}, '', '/');
-      }
+      setShowSubscriptionOnboarding(true);
+      window.history.replaceState({}, '', '/subscribe');
     } catch (err) {
       setAuthError(err.message || 'Signup failed');
       setUser(null);
     } finally {
       setLoadingUser(false);
     }
+  };
+
+  const finalizePostSignup = (nextSubscription) => {
+    if (nextSubscription) setSubscription(nextSubscription);
+    setShowSubscriptionOnboarding(false);
+
+    const pending = pendingPostAuthRef.current || {};
+    pendingPostAuthRef.current = null;
+    const portal = pending.portal || null;
+    const targetProduct = pending.targetProduct || null;
+
+    if (portal && targetProduct) {
+      setActivePortal(portal);
+      window.history.replaceState({}, '', `/${targetProduct}`);
+      return;
+    }
+
+    // If we don't have a destination (unexpected), fall back to normal picker.
+    setActivePortal(null);
+    window.history.replaceState({}, '', '/');
   };
 
   const handleLogout = async () => {
@@ -983,6 +1087,8 @@ const App = () => {
     setSelectedRole('patient');
     setCustomRole('');
     setSignupCountry('US');
+    setShowSubscriptionSettings(false);
+    setProGate({ show: false, featureKey: null });
     window.history.replaceState({}, '', '/');
   };
 
@@ -1000,6 +1106,7 @@ const App = () => {
     setShowPasswordReset(false);
     setPasswordResetSubmitted(false);
     setPasswordResetEmail('');
+    setPasswordResetLink('');
     setShowSignup(false);
     setShowLogin(true);
     setAuthError('');
@@ -1007,16 +1114,18 @@ const App = () => {
   };
 
   const handleProductSelect = (product) => {
-    setDesiredProduct(product);
+    setPasswordResetLink('');
+    const normalized = normalizeProductKey(product);
+    setDesiredProduct(normalized);
     setActivePortal(null);
     if (!user) {
       setShowLogin(true);
       window.history.replaceState({}, '', '/login');
       return;
     }
-    const portal = resolvePortalFromProduct(product, user.role);
+    const portal = resolvePortalFromProduct(normalized, user);
     setActivePortal(portal);
-    window.history.replaceState({}, '', `/${product}`);
+    window.history.replaceState({}, '', `/${normalized}`);
   };
 
   const normalizePatient = (raw) => {
@@ -1200,6 +1309,19 @@ const App = () => {
     const next = updateClinicData((prev) => ({
       ...prev,
       appointments: [...prev.appointments, appt],
+    }));
+    setClinicData(next);
+  };
+
+  const handleUpdatePreferredPharmacy = ({ patientId, preferredPharmacyId, preferredPharmacyOtherText }) => {
+    if (!patientId) return;
+    const next = updateClinicData((prev) => ({
+      ...prev,
+      patients: (prev.patients || []).map((p) => (
+        p.id === patientId
+          ? { ...p, preferredPharmacyId: preferredPharmacyId || '', preferredPharmacyOtherText: preferredPharmacyOtherText || '' }
+          : p
+      )),
     }));
     setClinicData(next);
   };
@@ -1997,6 +2119,8 @@ const App = () => {
             prescriptions={prescriptions}
             pharmacies={pharmacies}
             notifications={notifications}
+            currentUser={user}
+            onUpdatePreferredPharmacy={handleUpdatePreferredPharmacy}
             onOpenRecords={() => setRecordModal(true)}
             onOpenLab={(lab) => setLabModal(lab)}
             onOpenChat={() => setShowChat(true)}
@@ -2023,13 +2147,13 @@ const App = () => {
               setRecordPatient(p);
               setRecordModal(true);
             }}
-            onOpenAnalytics={() => setShowAnalytics(true)}
+            onOpenAnalytics={() => requireAccess('analytics', () => setShowAnalytics(true))}
             onOpenPatients={() => setShowPatients(true)}
             onAddPrescription={addPrescription}
             drugList={clinicData.drugList || []}
-            onRespondToAssignmentRequest={(args) => handleRespondToAssignmentRequest(args)}
-            onAcknowledgeEscalation={(args) => handleAcknowledgeEscalation(args)}
-            onResolveEscalation={(args) => handleResolveEscalation(args)}
+            onRespondToAssignmentRequest={(args) => requireAccess('provider_assignment', () => handleRespondToAssignmentRequest(args))}
+            onAcknowledgeEscalation={(args) => requireAccess('escalations', () => handleAcknowledgeEscalation(args))}
+            onResolveEscalation={(args) => requireAccess('escalations', () => handleResolveEscalation(args))}
             t={t}
           />
         );
@@ -2054,50 +2178,17 @@ const App = () => {
               setRecordPatient(p);
               setRecordModal(true);
             }}
-            onOpenAnalytics={() => setShowAnalytics(true)}
+            onOpenAnalytics={() => requireAccess('analytics', () => setShowAnalytics(true))}
             onOpenPatients={() => setShowPatients(true)}
             onAddPrescription={addPrescription}
             drugList={clinicData.drugList || []}
-            onRespondToAssignmentRequest={(args) => handleRespondToAssignmentRequest(args)}
-            onAcknowledgeEscalation={(args) => handleAcknowledgeEscalation(args)}
-            onResolveEscalation={(args) => handleResolveEscalation(args)}
+            onRespondToAssignmentRequest={(args) => requireAccess('provider_assignment', () => handleRespondToAssignmentRequest(args))}
+            onAcknowledgeEscalation={(args) => requireAccess('escalations', () => handleAcknowledgeEscalation(args))}
+            onResolveEscalation={(args) => requireAccess('escalations', () => handleResolveEscalation(args))}
             t={t}
           />
         );
       case 'nurse':
-        if (desiredProduct === 'telehealth') {
-          return (
-            <TelehealthWorkspace
-              patients={clinicData.patients}
-              appointments={clinicData.appointments}
-              labs={clinicData.labs}
-              triageQueue={telehealthTriage}
-              activeTelehealthVisit={activeTelehealthVisit}
-              currentUser={user}
-              providers={clinicData.providers}
-              notifications={notifications}
-              intakeStatusByPatientId={intakeStatusByPatientId}
-              onCloseVisit={handleCloseTelehealthVisit}
-              onOpenVisitSummary={(p) => {
-                setTelehealthSummaryPatient(p);
-                setShowTelehealthSummary(true);
-              }}
-              onOpenLab={(lab) => setLabModal(lab)}
-              onOpenChat={() => setShowChat(true)}
-              onOpenAssignments={() => setShowAssignments(true)}
-              onStartVisit={handleStartTelehealthVisit}
-              onAssignProvider={handleAssignProvider}
-              onEscalate={handleEscalate}
-              onRequestProviderAssignment={(payload) => handleRequestProviderAssignment(payload)}
-              onCreateEscalation={(payload) => handleCreateEscalation(payload)}
-              onCreateFollowUp={handleCreateFollowUp}
-              onOrderLab={handleOrderLab}
-              onSendIntake={handleSendIntake}
-              onMarkTriageComplete={handleMarkTriageComplete}
-              t={t}
-            />
-          );
-        }
         return (
           <NurseDashboard
             patients={clinicData.patients}
@@ -2114,39 +2205,6 @@ const App = () => {
           />
         );
       case 'psw':
-        if (desiredProduct === 'telehealth') {
-          return (
-            <TelehealthWorkspace
-              patients={clinicData.patients}
-              appointments={clinicData.appointments}
-              labs={clinicData.labs}
-              triageQueue={telehealthTriage}
-              activeTelehealthVisit={activeTelehealthVisit}
-              currentUser={user}
-              providers={clinicData.providers}
-              notifications={notifications}
-              intakeStatusByPatientId={intakeStatusByPatientId}
-              onCloseVisit={handleCloseTelehealthVisit}
-              onOpenVisitSummary={(p) => {
-                setTelehealthSummaryPatient(p);
-                setShowTelehealthSummary(true);
-              }}
-              onOpenLab={(lab) => setLabModal(lab)}
-              onOpenChat={() => setShowChat(true)}
-              onOpenAssignments={() => setShowAssignments(true)}
-              onStartVisit={handleStartTelehealthVisit}
-              onAssignProvider={handleAssignProvider}
-              onEscalate={handleEscalate}
-              onRequestProviderAssignment={(payload) => handleRequestProviderAssignment(payload)}
-              onCreateEscalation={(payload) => handleCreateEscalation(payload)}
-              onCreateFollowUp={handleCreateFollowUp}
-              onOrderLab={handleOrderLab}
-              onSendIntake={handleSendIntake}
-              onMarkTriageComplete={handleMarkTriageComplete}
-              t={t}
-            />
-          );
-        }
         return (
           <PSWDashboard
             currentUser={user}
@@ -2158,8 +2216,98 @@ const App = () => {
             t={t}
           />
         );
+      case 'telehealth': {
+        const doctorView = (
+          <DoctorDashboard
+            patients={clinicData.patients}
+            appointments={clinicData.appointments}
+            labs={clinicData.labs}
+            pharmacies={pharmacies}
+            prescriptions={prescriptions}
+            cases={telehealthTriage}
+            currentUser={user}
+            providers={clinicData.providers}
+            hideDetailsButton={false}
+            onOpenChart={(p) => {
+              setChartPatient(p);
+              setChartModal(true);
+            }}
+            onOpenRecords={(p) => {
+              setRecordPatient(p);
+              setRecordModal(true);
+            }}
+            onOpenAnalytics={() => requireAccess('analytics', () => setShowAnalytics(true))}
+            onOpenPatients={() => requireAccess('clinic_ops', () => setShowPatients(true))}
+            onAddPrescription={addPrescription}
+            drugList={clinicData.drugList || []}
+            onRespondToAssignmentRequest={(args) => requireAccess('provider_assignment', () => handleRespondToAssignmentRequest(args))}
+            onAcknowledgeEscalation={(args) => requireAccess('escalations', () => handleAcknowledgeEscalation(args))}
+            onResolveEscalation={(args) => requireAccess('escalations', () => handleResolveEscalation(args))}
+            t={t}
+          />
+        );
+
+        const nurseView = (
+          <TelehealthWorkspace
+            patients={clinicData.patients}
+            appointments={clinicData.appointments}
+            labs={clinicData.labs}
+            triageQueue={telehealthTriage}
+            activeTelehealthVisit={activeTelehealthVisit}
+            currentUser={user}
+            providers={clinicData.providers}
+            notifications={notifications}
+            intakeStatusByPatientId={intakeStatusByPatientId}
+            onCloseVisit={handleCloseTelehealthVisit}
+            onOpenVisitSummary={(p) => {
+              setTelehealthSummaryPatient(p);
+              setShowTelehealthSummary(true);
+            }}
+            onOpenLab={(lab) => setLabModal(lab)}
+            onOpenChat={() => setShowChat(true)}
+            onOpenAssignments={() => setShowAssignments(true)}
+            onStartVisit={handleStartTelehealthVisit}
+            onAssignProvider={(payload) => requireAccess('provider_assignment', () => handleAssignProvider(payload))}
+            onEscalate={() => requireAccess('escalations', () => handleEscalate())}
+            onRequestProviderAssignment={(payload) => requireAccess('provider_assignment', () => handleRequestProviderAssignment(payload))}
+            onCreateEscalation={(payload) => requireAccess('escalations', () => handleCreateEscalation(payload))}
+            onCreateFollowUp={(payload) => requireAccess('follow_ups', () => handleCreateFollowUp(payload))}
+            onOrderLab={(payload) => requireAccess('lab_ordering', () => handleOrderLab(payload))}
+            onSendIntake={(payload) => requireAccess('intake_sending', () => handleSendIntake(payload))}
+            onMarkTriageComplete={(payload) => requireAccess('triage_completion', () => handleMarkTriageComplete(payload))}
+            t={t}
+          />
+        );
+
+        return (
+          <TelehealthShell
+            currentUser={user}
+            doctorView={doctorView}
+            nurseView={nurseView}
+            t={t}
+          />
+        );
+      }
       case 'admin':
-        return <AdminPortal t={t} />;
+        if (canAccess('admin_config', subscription)) {
+          return <AdminPortal t={t} />;
+        }
+        return (
+          <Card className="card-plain">
+            <Card.Body>
+              <Card.Title>{t('Admin configuration')}</Card.Title>
+              <Card.Text className="text-muted">{t('This feature requires a Pro subscription.')}</Card.Text>
+              <div className="d-flex gap-2">
+                <Button variant="primary" onClick={() => { setProGate({ show: true, featureKey: 'admin_config' }); }}>
+                  {t('Unlock Pro features')}
+                </Button>
+                <Button variant="outline-secondary" onClick={() => setShowSubscriptionSettings(true)}>
+                  {t('Subscription Settings')}
+                </Button>
+              </div>
+            </Card.Body>
+          </Card>
+        );
       default:
         return (
           <Card className="card-plain">
@@ -2171,9 +2319,21 @@ const App = () => {
     }
   };
 
+  const effectiveTelehealthView = (() => {
+    if (!user) return null;
+    const role = String(user.role || '').trim().toLowerCase();
+    if (role === 'admin') return String(user.viewMode || 'doctor').trim().toLowerCase();
+    if (role === 'doctor' || role === 'specialist' || role === 'pharmacist') return 'doctor';
+    if (role === 'nurse' || role === 'psw') return 'nurse';
+    return role || null;
+  })();
+
   const shouldShowWorkspace = Boolean(user && activePortal);
-  const shouldShowPicker = (!user && !showLogin) || (user && !activePortal);
-  const shouldShowLoginForm = !user && (showLogin || !!desiredProduct);
+  const shouldShowSubscriptionScreen = Boolean(user && showSubscriptionOnboarding);
+  const shouldShowPicker = !shouldShowSubscriptionScreen && ((!user && !showLogin) || (user && !activePortal));
+  const shouldShowLoginForm = !shouldShowSubscriptionScreen && !user && (showLogin || !!desiredProduct);
+
+  const shouldUseNurseLayout = activePortal === 'nurse' || (activePortal === 'telehealth' && effectiveTelehealthView === 'nurse');
 
   return (
     <div className="app-shell">
@@ -2197,6 +2357,31 @@ const App = () => {
       )}
 
       <Container className="py-4">
+        {shouldShowSubscriptionScreen && (
+          <Row className="justify-content-center">
+            <Col xl={8}>
+              <SubscriptionOnboarding
+                t={t}
+                onCancel={() => {
+                  // If they cancel here, we just log them out to avoid a half-created flow.
+                  handleLogout();
+                }}
+                onChooseFree={() => {
+                  const next = downgradeToFree();
+                  finalizePostSignup(next);
+                }}
+                onStartProCheckout={() => {
+                  // no-op hook (kept for future analytics)
+                }}
+                onConfirmProCheckout={() => {
+                  const next = upgradeToProDemo();
+                  finalizePostSignup(next);
+                }}
+              />
+            </Col>
+          </Row>
+        )}
+
         {shouldShowPicker && (
           <Row className="justify-content-center mb-4">
             <Col xl={10}>
@@ -2247,18 +2432,60 @@ const App = () => {
                   {!showSignup && showPasswordReset && (
                     <>
                       <Alert variant="light" className="border">
-                        {t('Enter your email to receive password reset instructions.')}
+                        {t('Enter your email and we will send a sign-in link.')}
                       </Alert>
 
                       {passwordResetSubmitted ? (
-                        <Alert variant="success" className="mb-0">
-                          {t('If an account exists for that email, you will receive a reset link shortly.')}
-                        </Alert>
+                        <>
+                          <Alert variant="success" className="mb-2">
+                            {t('If an account exists for that email, you will receive a sign-in link shortly.')}
+                          </Alert>
+                          {passwordResetLink ? (
+                            <Alert variant="info" className="mb-0">
+                              <div className="fw-semibold mb-1">Sign-in link</div>
+                              <div className="small" style={{ wordBreak: 'break-all' }}>
+                                <a href={passwordResetLink}>{passwordResetLink}</a>
+                              </div>
+                              <div className="mt-2 d-flex gap-2 flex-wrap">
+                                <Button
+                                  size="sm"
+                                  variant="outline-secondary"
+                                  onClick={() => {
+                                    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+                                      navigator.clipboard.writeText(passwordResetLink).catch(() => {});
+                                    }
+                                  }}
+                                >
+                                  Copy link
+                                </Button>
+                              </div>
+                            </Alert>
+                          ) : null}
+                        </>
                       ) : (
                         <Form
                           onSubmit={(e) => {
                             e.preventDefault();
-                            setPasswordResetSubmitted(true);
+                            if (passwordResetSending) return;
+
+                            const email = String(passwordResetEmail || '').trim();
+                            if (!email) return;
+
+                            setPasswordResetSending(true);
+                            setPasswordResetLink('');
+                            fetchJson('/api/auth/forgot-password', {
+                              method: 'POST',
+                              body: JSON.stringify({ email }),
+                            })
+                              .then((data) => {
+                                const link = typeof data?.link === 'string' ? data.link : '';
+                                if (link) setPasswordResetLink(link);
+                              })
+                              .catch(() => {})
+                              .finally(() => {
+                                setPasswordResetSending(false);
+                                setPasswordResetSubmitted(true);
+                              });
                           }}
                         >
                           <Form.Group className="mb-3">
@@ -2272,7 +2499,9 @@ const App = () => {
                             />
                           </Form.Group>
                           <div className="d-grid">
-                            <Button type="submit" disabled={loadingUser}>{t('Send reset link')}</Button>
+                            <Button type="submit" disabled={loadingUser || passwordResetSending}>
+                              {passwordResetSending ? t('Sending…') : t('Send sign-in link')}
+                            </Button>
                           </div>
                         </Form>
                       )}
@@ -2375,7 +2604,6 @@ const App = () => {
                         <Form.Select name="product" defaultValue={desiredProduct || ''}>
                           <option value="">{t('Select later')}</option>
                           <option value="telehealth">Telehealth</option>
-                          <option value="telemedicine">Telemedicine</option>
                           <option value="homecare">HomeCare</option>
                           <option value="admin">Admin</option>
                         </Form.Select>
@@ -2450,13 +2678,36 @@ const App = () => {
                       >
                         {t('Change workspace')}
                       </Button>
+                      {normalizeProductKey(desiredProduct) === 'telehealth' && (
+                        <Button
+                          variant="outline-dark"
+                          size="sm"
+                          onClick={() => requireAccess('analytics', () => setShowAnalytics(true))}
+                        >
+                          {t('Analytics')}
+                        </Button>
+                      )}
+                      {user?.role === 'admin' && normalizeProductKey(desiredProduct) === 'telehealth' && (
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() => {
+                            setUser((prev) => {
+                              const nextMode = String(prev?.viewMode || 'doctor').trim().toLowerCase() === 'doctor' ? 'nurse' : 'doctor';
+                              return { ...prev, viewMode: nextMode };
+                            });
+                          }}
+                        >
+                          {t('Change User View')}
+                        </Button>
+                      )}
                     </div>
                   </Card.Body>
                 </Card>
               </Col>
             </Row>
 
-            {activePortal === 'nurse' ? (
+            {shouldUseNurseLayout ? (
               <Row>
                 <Col lg={12} className="mb-3">
                   {renderDashboard()}
@@ -2705,11 +2956,11 @@ const App = () => {
         providers={clinicData.providers}
         triageQueue={telehealthTriage}
         currentUser={user}
-        onRequestProviderAssignment={(payload) => handleRequestProviderAssignment(payload)}
-        onCancelAssignmentRequest={(payload) => handleCancelAssignmentRequest(payload)}
-        onCreateEscalation={(payload) => handleCreateEscalation(payload)}
-        onAcknowledgeEscalation={(payload) => handleAcknowledgeEscalation(payload)}
-        onResolveEscalation={(payload) => handleResolveEscalation(payload)}
+        onRequestProviderAssignment={(payload) => requireAccess('provider_assignment', () => handleRequestProviderAssignment(payload))}
+        onCancelAssignmentRequest={(payload) => requireAccess('provider_assignment', () => handleCancelAssignmentRequest(payload))}
+        onCreateEscalation={(payload) => requireAccess('escalations', () => handleCreateEscalation(payload))}
+        onAcknowledgeEscalation={(payload) => requireAccess('escalations', () => handleAcknowledgeEscalation(payload))}
+        onResolveEscalation={(payload) => requireAccess('escalations', () => handleResolveEscalation(payload))}
       />
 
       {user?.role === 'admin' && (
@@ -2726,6 +2977,9 @@ const App = () => {
               <Button variant="outline-primary" onClick={() => { refreshStore(); setShowSettings(false); }}>
                 Refresh local data
               </Button>
+              <Button variant="outline-secondary" onClick={() => { setShowSubscriptionSettings(true); setShowSettings(false); }}>
+                Subscription Settings
+              </Button>
               <Button variant="link" className="text-start ps-0" onClick={() => { setActivePortal(null); setShowSettings(false); }}>
                 Change portal
               </Button>
@@ -2733,6 +2987,51 @@ const App = () => {
           </Modal.Body>
         </Modal>
       )}
+
+      <SubscriptionSettingsModal
+        show={showSubscriptionSettings}
+        onHide={() => setShowSubscriptionSettings(false)}
+        subscription={subscription}
+        isAdmin={user?.role === 'admin'}
+        onUpgradeToPro={() => {
+          const next = upgradeToProDemo();
+          setSubscription(next);
+        }}
+        onDowngradeToFree={() => {
+          const next = downgradeToFree();
+          setSubscription(next);
+        }}
+        onSetTier={(tier) => {
+          const tVal = String(tier || '').trim().toLowerCase() === 'pro' ? 'pro' : 'free';
+          updateSubscription({ tier: tVal, status: 'active', startedAt: new Date().toISOString(), trialEndsAt: null, expiresAt: null });
+          setSubscription(getSubscription());
+        }}
+        t={t}
+      />
+
+      <ProFeatureGateModal
+        show={proGate.show}
+        onHide={() => setProGate({ show: false, featureKey: null })}
+        subscription={subscription}
+        featureKey={proGate.featureKey}
+        onStartTrial={() => {
+          const next = startProTrial();
+          setSubscription(next);
+          setProGate({ show: false, featureKey: null });
+          const action = pendingProActionRef.current;
+          pendingProActionRef.current = null;
+          action?.();
+        }}
+        onUpgrade={() => {
+          const next = upgradeToProDemo();
+          setSubscription(next);
+          setProGate({ show: false, featureKey: null });
+          const action = pendingProActionRef.current;
+          pendingProActionRef.current = null;
+          action?.();
+        }}
+        t={t}
+      />
     </div>
   );
 };

@@ -3,19 +3,10 @@ import { Card, Badge } from 'react-bootstrap';
 
 export const PRODUCT_CATALOG = [
   {
-    key: 'telemedicine',
-    title: 'Telemedicine',
-    subtitle: 'Hospitals & Clinics',
-    description: 'Visits, provider charts, labs, billing',
-    badge: 'Login required',
-    monogram: 'TM',
-    accent: 'emerald',
-  },
-  {
     key: 'telehealth',
     title: 'Telehealth',
-    subtitle: 'Nursing workflows',
-    description: 'Triage, nurse tasks, chart review, coordination',
+    subtitle: 'Doctor & Nurse workflows',
+    description: 'Visits, charts, triage, labs, coordination',
     badge: 'Login required',
     monogram: 'TH',
     accent: 'teal',
