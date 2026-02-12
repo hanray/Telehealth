@@ -20,12 +20,15 @@ import AppointmentModal from './components/AppointmentModal';
 import InsuranceModal from './components/InsuranceModal';
 import RefillModal from './components/RefillModal';
 import ProductPicker, { PRODUCT_CATALOG } from './components/ProductPicker';
-import { getClinicData, updateClinicData, getClinicConfig, onClinicConfigChange, ensureSubscriptionFresh, getSubscription, startProTrial, upgradeToProDemo, downgradeToFree, updateSubscription } from './config/dataStore';
+import { getClinicData, updateClinicData, getClinicConfig, onClinicConfigChange, ensureSubscriptionFresh, getSubscription, setPlanIntent, startTrialForTier, startProTrial, upgradeToProDemo, downgradeToFree, updateSubscription } from './config/dataStore';
 import { createAppointment } from './utils/appointmentUtils';
 import { canAccess } from './utils/entitlements';
 import ProFeatureGateModal from './components/ProFeatureGateModal';
 import SubscriptionSettingsModal from './components/SubscriptionSettingsModal';
 import SubscriptionOnboarding from './components/SubscriptionOnboarding';
+import PricingPage from './components/PricingPage';
+import CountryOfOriginModal from './components/CountryOfOriginModal';
+import { getCountryOptions, isOtherCountry, OTHER_COUNTRY_CODE } from './utils/countries';
 
 const SUPPORTED_LANGUAGES = [
   { code: 'en-US', label: 'English (US)', flag: '🇺🇸' },
@@ -387,19 +390,13 @@ const makeTranslator = (language) => {
   return (text) => table[text] || text;
 };
 
-const SUPPORTED_COUNTRIES = [
-  { code: 'US', label: 'United States' },
-  { code: 'CA', label: 'Canada' },
-  { code: 'GB', label: 'United Kingdom' },
-  { code: 'AU', label: 'Australia' },
-  { code: 'IN', label: 'India' },
-  { code: 'SG', label: 'Singapore' },
-  { code: 'PH', label: 'Philippines' },
-  { code: 'BR', label: 'Brazil' },
-  { code: 'MX', label: 'Mexico' },
-  { code: 'ZA', label: 'South Africa' },
-  { code: 'GH', label: 'Ghana' },
-];
+const normalizeCountryCode = (value) => {
+  const v = String(value || '').trim().toUpperCase();
+  if (!v) return 'US';
+  if (v === OTHER_COUNTRY_CODE) return OTHER_COUNTRY_CODE;
+  if (/^[A-Z]{2}$/.test(v)) return v;
+  return 'US';
+};
 
 const API_BASE =
   process.env.NODE_ENV === 'production'
@@ -533,14 +530,24 @@ const App = () => {
     }
   });
   const t = useMemo(() => makeTranslator(selectedLanguage), [selectedLanguage]);
+  const countryOptions = useMemo(() => getCountryOptions(selectedLanguage, t), [selectedLanguage, t]);
   const [signupCountry, setSignupCountry] = useState(() => {
     if (typeof window === 'undefined') return 'US';
     try {
-      return localStorage.getItem('signupCountry') || 'US';
+      return normalizeCountryCode(localStorage.getItem('signupCountry') || 'US');
     } catch (err) {
       return 'US';
     }
   });
+  const [signupCountryOtherText, setSignupCountryOtherText] = useState('');
+
+  const [showCountryOnboarding, setShowCountryOnboarding] = useState(false);
+  const pendingCountryRef = React.useRef(null);
+  const [countrySaveError, setCountrySaveError] = useState('');
+
+  const [profileCountryCode, setProfileCountryCode] = useState('US');
+  const [profileCountryOtherText, setProfileCountryOtherText] = useState('');
+  const [profileSaving, setProfileSaving] = useState(false);
 
   const [clinicData, setClinicData] = useState(() => getClinicData());
   const [clinicConfig, setClinicConfig] = useState(() => getClinicConfig());
@@ -568,6 +575,17 @@ const App = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showSubscriptionSettings, setShowSubscriptionSettings] = useState(false);
   const [showSubscriptionOnboarding, setShowSubscriptionOnboarding] = useState(false);
+  const [showPricing, setShowPricing] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.location?.pathname === '/pricing';
+  });
+  const [billingStatus, setBillingStatus] = useState({
+    provider: 'none',
+    configured: false,
+    capabilities: { checkout: false, portal: false, webhook: false },
+    error: '',
+  });
+  const [billingActionError, setBillingActionError] = useState('');
   const pendingPostAuthRef = React.useRef(null);
   const [proGate, setProGate] = useState({ show: false, featureKey: null });
   const pendingProActionRef = React.useRef(null);
@@ -597,6 +615,18 @@ const App = () => {
           setDesiredProduct(targetProduct);
         }
         const portal = resolvePortalFromProduct(targetProduct, nextUser);
+
+		// If user profile is missing required Country of Origin, block entry until completed.
+		if (nextUser && !nextUser.hasCountryOfOrigin) {
+			pendingCountryRef.current = { portal, targetProduct };
+			setActivePortal(null);
+			setShowLogin(false);
+			setShowSignup(false);
+			setShowCountryOnboarding(true);
+			window.history.replaceState({}, '', '/country-of-origin');
+			return;
+		}
+
         setActivePortal(portal);
         setShowLogin(false);
         if (portal && targetProduct) {
@@ -623,6 +653,41 @@ const App = () => {
       setSubscription(getSubscription());
     });
   }, []);
+
+  useEffect(() => {
+    if (!showSettings || !user) return;
+    const code = normalizeCountryCode(user?.countryOfOrigin?.countryCode || user?.country || 'US');
+    setProfileCountryCode(code);
+    setProfileCountryOtherText(user?.countryOfOrigin?.countryOtherText || '');
+  }, [showSettings, user]);
+
+  useEffect(() => {
+    if (!showSubscriptionSettings || !user) return;
+    let cancelled = false;
+    setBillingActionError('');
+    fetchJson('/api/billing/status')
+      .then((data) => {
+        if (cancelled) return;
+        setBillingStatus({
+          provider: data?.provider || 'none',
+          configured: !!data?.configured,
+          capabilities: data?.capabilities || { checkout: false, portal: false, webhook: false },
+          error: '',
+        });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setBillingStatus({
+          provider: 'none',
+          configured: false,
+          capabilities: { checkout: false, portal: false, webhook: false },
+          error: err?.message || 'Billing status unavailable',
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showSubscriptionSettings, user]);
 
   const requireAccess = (featureKey, action) => {
     const fresh = ensureSubscriptionFresh();
@@ -735,7 +800,7 @@ const App = () => {
     if (typeof window === 'undefined') return;
     try {
       localStorage.setItem('language', selectedLanguage || 'en');
-      localStorage.setItem('signupCountry', signupCountry || 'US');
+      localStorage.setItem('signupCountry', /^[A-Z]{2}$/.test(String(signupCountry || '').toUpperCase()) ? String(signupCountry).toUpperCase() : 'US');
     } catch (err) {
       // ignore persistence errors
     }
@@ -981,6 +1046,17 @@ const App = () => {
         setDesiredProduct(targetProduct);
       }
       const portal = resolvePortalFromProduct(targetProduct, nextUser);
+
+      if (nextUser && !nextUser.hasCountryOfOrigin) {
+        pendingCountryRef.current = { portal, targetProduct };
+        setActivePortal(null);
+        setShowLogin(false);
+        setShowSignup(false);
+        setShowCountryOnboarding(true);
+        window.history.replaceState({}, '', '/country-of-origin');
+        return;
+      }
+
       setActivePortal(portal);
       setShowLogin(false);
       setShowSignup(false);
@@ -1005,10 +1081,18 @@ const App = () => {
     const password = form.get('password');
     const role = form.get('role');
     const customRoleValue = (form.get('customRole') || '').toString().trim();
-    const country = (form.get('country') || signupCountry || 'US').toString();
+    const countryCode = normalizeCountryCode((form.get('countryCode') || signupCountry || 'US').toString());
+    const countryOtherText = (form.get('countryOtherText') || '').toString();
     if (role === 'other' && !customRoleValue) {
       setAuthError('Please enter a role name when choosing Other.');
       return;
+    }
+    if (String(countryCode || '').toUpperCase() === OTHER_COUNTRY_CODE) {
+      const cleaned = String(countryOtherText || '').trim();
+      if (cleaned.length < 2 || cleaned.length > 64) {
+        setAuthError('Please specify a country (2-64 characters).');
+        return;
+      }
     }
     const productChoice = normalizeProductKey(form.get('product') || desiredProduct || '');
     try {
@@ -1022,7 +1106,9 @@ const App = () => {
           password,
           role,
           customRole: customRoleValue || null,
-          country,
+          countryCode,
+          countryOtherText: String(countryCode || '').toUpperCase() === OTHER_COUNTRY_CODE ? String(countryOtherText || '').trim() : null,
+          countrySource: 'signup',
           product: productChoice || null,
         }),
       });
@@ -1035,13 +1121,15 @@ const App = () => {
         setDesiredProduct(targetProduct);
       }
       const portal = resolvePortalFromProduct(targetProduct, nextUser);
-      // New flow: after signup, require a subscription choice (Free vs Pro) before entering the app.
-      pendingPostAuthRef.current = { portal, targetProduct };
-      setActivePortal(null);
+      // Typical UX: do not block entry after signup.
+      setActivePortal(portal);
       setShowLogin(false);
       setShowSignup(false);
-      setShowSubscriptionOnboarding(true);
-      window.history.replaceState({}, '', '/subscribe');
+      if (portal && targetProduct) {
+        window.history.replaceState({}, '', `/${targetProduct}`);
+      } else {
+        window.history.replaceState({}, '', '/');
+      }
     } catch (err) {
       setAuthError(err.message || 'Signup failed');
       setUser(null);
@@ -1070,6 +1158,44 @@ const App = () => {
     window.history.replaceState({}, '', '/');
   };
 
+  const saveCountryOfOrigin = async ({ countryCode, countryOtherText, countrySource }) => {
+    const payload = {
+      countryCode,
+      countryOtherText: isOtherCountry(countryCode) ? (String(countryOtherText || '').trim() || null) : null,
+      countrySource: countrySource || 'profile',
+    };
+    const data = await fetchJson('/api/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    const nextUser = decorateUserForView(data.user);
+    setUser(nextUser);
+    return nextUser;
+  };
+
+  const completeCountryOnboarding = async ({ countryCode, countryOtherText }) => {
+    try {
+      setCountrySaveError('');
+      const nextUser = await saveCountryOfOrigin({ countryCode, countryOtherText, countrySource: 'onboarding' });
+      setShowCountryOnboarding(false);
+
+      const pending = pendingCountryRef.current || {};
+      pendingCountryRef.current = null;
+
+      const portal = pending.portal || resolvePortalFromProduct(normalizeProductKey(desiredProduct), nextUser);
+      const targetProduct = pending.targetProduct || normalizeProductKey(desiredProduct) || null;
+
+      setActivePortal(portal);
+      if (portal && targetProduct) {
+        window.history.replaceState({}, '', `/${targetProduct}`);
+      } else {
+        window.history.replaceState({}, '', '/');
+      }
+    } catch (err) {
+      setCountrySaveError(err.message || 'Failed to save country');
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await fetchJson('/api/auth/logout', { method: 'POST' });
@@ -1087,7 +1213,9 @@ const App = () => {
     setSelectedRole('patient');
     setCustomRole('');
     setSignupCountry('US');
+    setSignupCountryOtherText('');
     setShowSubscriptionSettings(false);
+    setShowPricing(false);
     setProGate({ show: false, featureKey: null });
     window.history.replaceState({}, '', '/');
   };
@@ -2296,10 +2424,10 @@ const App = () => {
           <Card className="card-plain">
             <Card.Body>
               <Card.Title>{t('Admin configuration')}</Card.Title>
-              <Card.Text className="text-muted">{t('This feature requires a Pro subscription.')}</Card.Text>
+              <Card.Text className="text-muted">{t('This feature requires a paid subscription tier.')}</Card.Text>
               <div className="d-flex gap-2">
                 <Button variant="primary" onClick={() => { setProGate({ show: true, featureKey: 'admin_config' }); }}>
-                  {t('Unlock Pro features')}
+                  {t('Unlock paid features')}
                 </Button>
                 <Button variant="outline-secondary" onClick={() => setShowSubscriptionSettings(true)}>
                   {t('Subscription Settings')}
@@ -2328,10 +2456,12 @@ const App = () => {
     return role || null;
   })();
 
-  const shouldShowWorkspace = Boolean(user && activePortal);
+  const shouldShowCountryScreen = Boolean(user && showCountryOnboarding);
   const shouldShowSubscriptionScreen = Boolean(user && showSubscriptionOnboarding);
-  const shouldShowPicker = !shouldShowSubscriptionScreen && ((!user && !showLogin) || (user && !activePortal));
-  const shouldShowLoginForm = !shouldShowSubscriptionScreen && !user && (showLogin || !!desiredProduct);
+  const shouldShowPricingScreen = Boolean(showPricing);
+  const shouldShowWorkspace = Boolean(user && activePortal && !shouldShowCountryScreen && !shouldShowSubscriptionScreen && !shouldShowPricingScreen);
+  const shouldShowPicker = !shouldShowSubscriptionScreen && !shouldShowCountryScreen && !shouldShowPricingScreen && ((!user && !showLogin) || (user && !activePortal));
+  const shouldShowLoginForm = !shouldShowSubscriptionScreen && !shouldShowCountryScreen && !shouldShowPricingScreen && !user && (showLogin || !!desiredProduct);
 
   const shouldUseNurseLayout = activePortal === 'nurse' || (activePortal === 'telehealth' && effectiveTelehealthView === 'nurse');
 
@@ -2343,6 +2473,8 @@ const App = () => {
         isAdmin={user?.role === 'admin'}
         onOpenSettings={() => setShowSettings(true)}
         onLogin={() => { setShowSignup(false); setShowLogin(true); window.history.replaceState({}, '', '/login'); }}
+        onOpenPricing={() => { setShowPricing(true); setShowSignup(false); setShowLogin(false); window.history.replaceState({}, '', '/pricing'); }}
+        showPricingAction
         showLoginAction={!user}
         languages={SUPPORTED_LANGUAGES}
         selectedLanguage={selectedLanguage}
@@ -2357,6 +2489,65 @@ const App = () => {
       )}
 
       <Container className="py-4">
+        {shouldShowPricingScreen && (
+          <Row className="justify-content-center">
+            <Col xl={10}>
+              <PricingPage
+                t={t}
+                planIntent={subscription?.planIntent || null}
+                onChoosePlan={(tier) => {
+                  const next = setPlanIntent(tier);
+                  setSubscription(next);
+                }}
+                onStartTrial={(tier) => {
+                  if (!user) {
+                    const next = setPlanIntent(tier);
+                    setSubscription(next);
+                    setShowPricing(false);
+                    setShowSignup(true);
+                    setShowLogin(true);
+                    window.history.replaceState({}, '', '/signup');
+                    return;
+                  }
+                  const next = startTrialForTier(tier);
+                  setSubscription(next);
+                }}
+                onContinue={() => {
+                  setShowPricing(false);
+                  if (user && activePortal) {
+                    window.history.replaceState({}, '', `/${activePortal}`);
+                    return;
+                  }
+                  if (!user) {
+                    setShowSignup(false);
+                    setShowLogin(true);
+                    window.history.replaceState({}, '', '/login');
+                    return;
+                  }
+                  window.history.replaceState({}, '', '/');
+                }}
+              />
+            </Col>
+          </Row>
+        )}
+
+        {shouldShowCountryScreen && (
+          <Row className="justify-content-center">
+            <Col xl={6}>
+              <CountryOfOriginModal
+                show
+                allowClose={false}
+                locale={selectedLanguage}
+                t={t}
+                initialCountryCode={user?.countryOfOrigin?.countryCode || user?.country || signupCountry || 'US'}
+                initialOtherText={user?.countryOfOrigin?.countryOtherText || ''}
+                serverError={countrySaveError}
+                onSave={(payload) => completeCountryOnboarding(payload)}
+              />
+            </Col>
+          </Row>
+        )}
+
         {shouldShowSubscriptionScreen && (
           <Row className="justify-content-center">
             <Col xl={8}>
@@ -2416,6 +2607,7 @@ const App = () => {
                         setSelectedRole('patient');
                         setCustomRole('');
                         setSignupCountry('US');
+                        setSignupCountryOtherText('');
                         window.history.replaceState({}, '', '/');
                       }}
                     >
@@ -2587,18 +2779,36 @@ const App = () => {
                       <Form.Group className="mb-3">
                         <Form.Label>{t('Country')}</Form.Label>
                         <Form.Select
-                          name="country"
+                          name="countryCode"
                           value={signupCountry}
-                          onChange={(e) => setSignupCountry(e.target.value)}
+                          onChange={(e) => {
+                            const next = normalizeCountryCode(e.target.value);
+                            setSignupCountry(next);
+                            if (!isOtherCountry(next)) setSignupCountryOtherText('');
+                          }}
                           required
                         >
-                          {SUPPORTED_COUNTRIES.map((country) => (
+                          {countryOptions.map((country) => (
                             <option key={country.code} value={country.code}>
                               {country.label}
                             </option>
                           ))}
                         </Form.Select>
                       </Form.Group>
+                      {isOtherCountry(signupCountry) && (
+                        <Form.Group className="mb-3">
+                          <Form.Label>{t('Specify country')}</Form.Label>
+                          <Form.Control
+                            name="countryOtherText"
+                            value={signupCountryOtherText}
+                            onChange={(e) => setSignupCountryOtherText(e.target.value)}
+                            minLength={2}
+                            maxLength={64}
+                            placeholder={t('Enter your country')}
+                            required
+                          />
+                        </Form.Group>
+                      )}
                       <Form.Group className="mb-3">
                         <Form.Label>{t('Product (optional)')}</Form.Label>
                         <Form.Select name="product" defaultValue={desiredProduct || ''}>
@@ -2628,6 +2838,7 @@ const App = () => {
                               setSelectedRole('patient');
                               setCustomRole('');
                               setSignupCountry('US');
+                              setSignupCountryOtherText('');
                               window.history.replaceState({}, '', '/signup');
                             }}
                           >
@@ -2643,6 +2854,7 @@ const App = () => {
                               setSelectedRole('patient');
                               setCustomRole('');
                               setSignupCountry('US');
+                              setSignupCountryOtherText('');
                               window.history.replaceState({}, '', '/login');
                             }}
                           >
@@ -2963,20 +3175,87 @@ const App = () => {
         onResolveEscalation={(payload) => requireAccess('escalations', () => handleResolveEscalation(payload))}
       />
 
-      {user?.role === 'admin' && (
+      {user && (
         <Modal show={showSettings} onHide={() => setShowSettings(false)} centered>
           <Modal.Header closeButton>
-            <Modal.Title>Admin Tools</Modal.Title>
+            <Modal.Title>{user?.role === 'admin' ? 'Admin Tools' : t('Settings')}</Modal.Title>
           </Modal.Header>
           <Modal.Body>
             <div className="mb-3">
+              <div className="fw-semibold">{t('Profile')}</div>
+              <div className="text-muted" style={{ fontSize: 13 }}>
+                {t('Country of origin is used for reporting.')}
+              </div>
+            </div>
+
+            <Form.Group className="mb-2">
+              <Form.Label>{t('Country')}</Form.Label>
+              <Form.Select
+                value={profileCountryCode}
+                onChange={(e) => {
+                  const next = normalizeCountryCode(e.target.value);
+                  setProfileCountryCode(next);
+                  if (!isOtherCountry(next)) setProfileCountryOtherText('');
+                }}
+              >
+                {countryOptions.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+
+            {isOtherCountry(profileCountryCode) && (
+              <Form.Group className="mb-2">
+                <Form.Label>{t('Specify country')}</Form.Label>
+                <Form.Control
+                  value={profileCountryOtherText}
+                  onChange={(e) => setProfileCountryOtherText(e.target.value)}
+                  minLength={2}
+                  maxLength={64}
+                  placeholder={t('Enter your country')}
+                />
+              </Form.Group>
+            )}
+
+            <div className="d-grid mb-3">
+              <Button
+                variant="primary"
+                disabled={profileSaving}
+                onClick={async () => {
+                  try {
+                    setProfileSaving(true);
+                    await saveCountryOfOrigin({
+                      countryCode: profileCountryCode,
+                      countryOtherText: profileCountryOtherText,
+                      countrySource: 'profile',
+                    });
+                    setShowSettings(false);
+                  } catch (err) {
+                    setAuthError(err.message || 'Failed to save profile');
+                  } finally {
+                    setProfileSaving(false);
+                  }
+                }}
+              >
+                {profileSaving ? t('Saving…') : t('Save')}
+              </Button>
+            </div>
+
+            <hr />
+
+            <div className="mb-2">
               <div className="fw-semibold">API</div>
               <div className="text-muted">{DISPLAY_API_BASE}</div>
             </div>
+
             <div className="d-grid gap-2">
-              <Button variant="outline-primary" onClick={() => { refreshStore(); setShowSettings(false); }}>
-                Refresh local data
-              </Button>
+              {user?.role === 'admin' && (
+                <Button variant="outline-primary" onClick={() => { refreshStore(); setShowSettings(false); }}>
+                  Refresh local data
+                </Button>
+              )}
               <Button variant="outline-secondary" onClick={() => { setShowSubscriptionSettings(true); setShowSettings(false); }}>
                 Subscription Settings
               </Button>
@@ -2993,6 +3272,51 @@ const App = () => {
         onHide={() => setShowSubscriptionSettings(false)}
         subscription={subscription}
         isAdmin={user?.role === 'admin'}
+        billingStatus={billingStatus}
+        billingActionError={billingActionError}
+        onManageBilling={async () => {
+          try {
+            setBillingActionError('');
+            if (!billingStatus?.configured || !billingStatus?.capabilities?.portal) {
+              setBillingActionError(t('Billing not available yet.'));
+              return;
+            }
+            const data = await fetchJson('/api/billing/portal');
+            if (data?.url) {
+              window.location.href = data.url;
+              return;
+            }
+            setBillingActionError(t('Billing portal is unavailable.'));
+          } catch (err) {
+            setBillingActionError(err.message || t('Billing portal is unavailable.'));
+          }
+        }}
+        onStartBillingUpgrade={async () => {
+          try {
+            setBillingActionError('');
+            if (!billingStatus?.configured || !billingStatus?.capabilities?.checkout) {
+              setBillingActionError(t('Billing not available yet.'));
+              return;
+            }
+            const planId = (clinicData?.plans || []).find((p) => p?.active !== false)?.id || 'plan_plus';
+            const base = window.location.origin;
+            const data = await fetchJson('/api/billing/checkout-session', {
+              method: 'POST',
+              body: JSON.stringify({
+                planId,
+                successUrl: `${base}/?billing=success`,
+                cancelUrl: `${base}/?billing=cancel`,
+              }),
+            });
+            if (data?.url) {
+              window.location.href = data.url;
+              return;
+            }
+            setBillingActionError(t('Billing checkout is unavailable.'));
+          } catch (err) {
+            setBillingActionError(err.message || t('Billing checkout is unavailable.'));
+          }
+        }}
         onUpgradeToPro={() => {
           const next = upgradeToProDemo();
           setSubscription(next);
@@ -3002,7 +3326,10 @@ const App = () => {
           setSubscription(next);
         }}
         onSetTier={(tier) => {
-          const tVal = String(tier || '').trim().toLowerCase() === 'pro' ? 'pro' : 'free';
+          const normalized = String(tier || '').trim().toLowerCase();
+          const tVal = (normalized === 'gold' || normalized === 'premium' || normalized === 'basic' || normalized === 'free')
+            ? normalized
+            : (normalized === 'pro' ? 'premium' : 'free');
           updateSubscription({ tier: tVal, status: 'active', startedAt: new Date().toISOString(), trialEndsAt: null, expiresAt: null });
           setSubscription(getSubscription());
         }}

@@ -8,7 +8,15 @@ const fmt = (iso) => {
   return d.toLocaleString();
 };
 
-const normalizeTier = (tier) => (String(tier || '').trim().toLowerCase() === 'pro' ? 'pro' : 'free');
+const normalizeTier = (tier) => {
+  const v = String(tier || '').trim().toLowerCase();
+  if (v === 'free') return 'free';
+  if (v === 'basic') return 'basic';
+  if (v === 'premium') return 'premium';
+  if (v === 'gold') return 'gold';
+  if (v === 'pro') return 'premium';
+  return 'free';
+};
 const normalizeStatus = (status) => {
   const s = String(status || '').trim().toLowerCase();
   if (s === 'trialing') return 'trialing';
@@ -16,11 +24,24 @@ const normalizeStatus = (status) => {
   return 'active';
 };
 
+const normalizeIntentTier = (tier) => {
+  const v = String(tier || '').trim().toLowerCase();
+  if (v === 'free') return 'free';
+  if (v === 'basic') return 'basic';
+  if (v === 'premium') return 'premium';
+  if (v === 'gold') return 'gold';
+  return null;
+};
+
 const SubscriptionSettingsModal = ({
   show,
   onHide,
   subscription,
   isAdmin,
+  billingStatus,
+  billingActionError,
+  onManageBilling,
+  onStartBillingUpgrade,
   onUpgradeToPro,
   onDowngradeToFree,
   onSetTier,
@@ -28,6 +49,8 @@ const SubscriptionSettingsModal = ({
 }) => {
   const tier = normalizeTier(subscription?.tier);
   const status = normalizeStatus(subscription?.status);
+  const planIntentTier = normalizeIntentTier(subscription?.planIntent?.tier);
+  const planIntentSelectedAt = subscription?.planIntent?.selectedAt || null;
 
   const [adminTier, setAdminTier] = useState(tier);
 
@@ -43,8 +66,17 @@ const SubscriptionSettingsModal = ({
         <Modal.Title>{t('Subscription Settings')}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
+        {!!billingActionError && (
+          <Alert variant="danger" className="mb-3">
+            {billingActionError}
+          </Alert>
+        )}
+
         <Alert variant="light" className="border mb-3">
-          {t('Billing integration coming soon.')}
+          {(billingStatus?.configured && (billingStatus?.capabilities?.checkout || billingStatus?.capabilities?.portal))
+            ? t('Billing is available.')
+            : t('Billing not available yet.')}
+          <div className="text-muted small mt-1">{t('Provider')}: {String(billingStatus?.provider || 'none')}</div>
         </Alert>
 
         <div className="d-flex align-items-center justify-content-between mb-2">
@@ -63,22 +95,54 @@ const SubscriptionSettingsModal = ({
           <div className="text-muted small">{t('Expired at')}: {fmt(subscription?.expiresAt)}</div>
         )}
 
+        <div className="text-muted small mt-2">
+          {t('Selected plan (intent)')}: <strong>{planIntentTier ? planIntentTier.toUpperCase() : '—'}</strong>
+          {planIntentSelectedAt ? (
+            <span className="ms-2">({t('selected')} {fmt(planIntentSelectedAt)})</span>
+          ) : null}
+        </div>
+
+        <div className="text-muted small mt-1">
+          {t('Note')}: {t('Trial and tier controls are demo-mode until billing is live.')}
+        </div>
+
         <hr />
 
-        <div className="d-grid gap-2">
-          <Button variant="primary" onClick={onUpgradeToPro}>
-            {t('Upgrade to Pro (demo mode)')}
+        <div className="fw-semibold mb-2">{t('Billing')}</div>
+        <div className="d-grid gap-2 mb-3">
+          <Button
+            variant="outline-primary"
+            onClick={onManageBilling}
+            disabled={!billingStatus?.configured || !billingStatus?.capabilities?.portal}
+          >
+            {t('Manage subscription')}
           </Button>
-          <Button variant="outline-secondary" onClick={onDowngradeToFree}>
-            {t('Downgrade to Free')}
+          <Button
+            variant="primary"
+            onClick={onStartBillingUpgrade}
+            disabled={!billingStatus?.configured || !billingStatus?.capabilities?.checkout}
+          >
+            {t('Upgrade')}
           </Button>
         </div>
+
+        <hr />
 
         {isAdmin && (
           <>
             <hr />
             <div className="fw-semibold mb-2">{t('Admin / tester override')}</div>
             <div className="text-muted small mb-2">{t('This is for demos/testing only.')}</div>
+
+            <div className="d-grid gap-2 mb-3">
+              <Button variant="primary" onClick={onUpgradeToPro}>
+                {t('Upgrade (demo mode)')}
+              </Button>
+              <Button variant="outline-secondary" onClick={onDowngradeToFree}>
+                {t('Downgrade to Free')}
+              </Button>
+            </div>
+
             <Form.Select
               value={adminTier}
               onChange={(e) => setAdminTier(e.target.value)}
@@ -86,13 +150,15 @@ const SubscriptionSettingsModal = ({
               className="mb-2"
             >
               <option value="free">Free</option>
-              <option value="pro">Pro</option>
+              <option value="basic">Basic</option>
+              <option value="premium">Premium</option>
+              <option value="gold">Gold</option>
             </Form.Select>
             <Button
               variant="outline-primary"
               onClick={() => onSetTier?.(adminTier)}
             >
-              {t('Set subscription tier')}
+              {t('Force tier')}
             </Button>
           </>
         )}

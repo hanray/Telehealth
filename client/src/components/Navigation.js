@@ -7,6 +7,8 @@ const Navigation = ({
   isAdmin,
   onOpenSettings,
   onLogin,
+  onOpenPricing,
+  showPricingAction,
   showLoginAction,
   languages = [],
   selectedLanguage,
@@ -48,8 +50,18 @@ const Navigation = ({
               {t('Login action')}
             </Button>
           )}
+          {showPricingAction && (
+            <Button variant="outline-light" size="sm" onClick={onOpenPricing}>
+              {t('Pricing')}
+            </Button>
+          )}
           {isAdmin && (
             <Button variant="light" className="text-secondary" size="sm" onClick={onOpenSettings} disabled={!user}>
+              ⚙ {t('Settings')}
+            </Button>
+          )}
+          {!isAdmin && user && (
+            <Button variant="light" className="text-secondary" size="sm" onClick={onOpenSettings}>
               ⚙ {t('Settings')}
             </Button>
           )}

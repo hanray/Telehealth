@@ -23,27 +23,27 @@ const ProFeatureGateModal = ({
   return (
     <Modal show={!!show} onHide={onHide} centered>
       <Modal.Header closeButton>
-        <Modal.Title>{t('Pro feature')}</Modal.Title>
+        <Modal.Title>{t('Upgrade required')}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Alert variant="light" className="border">
           {isExpired
-            ? t('Your trial has ended. Upgrade to Pro to continue using this feature.')
-            : t('This feature is part of Pro. Start a free trial?')}
+            ? t('Your trial has ended. Choose a paid tier (Basic, Premium, or Gold) to continue using this feature.')
+            : t('This feature requires a paid tier (Basic, Premium, or Gold). Start a free trial?')}
         </Alert>
 
         <div className="text-muted small">
-          {t('Feature')}: <strong>{String(featureKey || 'pro_feature')}</strong>
+          {t('Feature')}: <strong>{String(featureKey || 'gated_feature')}</strong>
         </div>
-        <div className="text-muted small mt-2">{t('Billing integration coming soon.')}</div>
+        <div className="text-muted small mt-2">{t('Billing integration coming soon (demo mode).')}</div>
         {!isExpired && (
-          <div className="text-muted small mt-2">{t('14 days • No credit card required')}</div>
+          <div className="text-muted small mt-2">{t('7 days • No credit card required')}</div>
         )}
       </Modal.Body>
       <Modal.Footer>
         <Button variant="outline-secondary" onClick={onHide}>{t('Not now')}</Button>
         {isExpired ? (
-          <Button variant="primary" onClick={onUpgrade}>{t('Upgrade to Pro (demo mode)')}</Button>
+          <Button variant="primary" onClick={onUpgrade}>{t('Choose paid tier (demo mode)')}</Button>
         ) : (
           <Button variant="primary" onClick={onStartTrial}>{t('Start free trial')}</Button>
         )}

@@ -6,9 +6,9 @@ const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { findByEmail, addUser, nextId, allUsers, updateUser } = require('../utils/userStore');
 const { sendEmail } = require('../utils/mailer');
+const { parseCountryOfOrigin, hasCountryOfOrigin } = require('../utils/countryOfOrigin');
 
 const ALLOWED_ROLES = ['patient', 'doctor', 'nurse', 'pharmacy', 'admin'];
-const SUPPORTED_COUNTRIES = ['US', 'CA', 'GB', 'AU', 'IN', 'SG', 'PH', 'BR', 'MX', 'ZA', 'GH'];
 const DEMO_LABEL = 'Demo / MVP auth';
 
 const sha256Hex = (value) => crypto.createHash('sha256').update(String(value || '')).digest('hex');
@@ -35,7 +35,7 @@ const shouldExposeMagicLinkInResponse = () => {
 
 const handleSignup = async (req, res) => {
 	try {
-		const { email, password, role, customRole, org_id, patientId, patient_id, name, product, country } = req.body || {};
+		const { email, password, role, customRole, org_id, patientId, patient_id, name, product } = req.body || {};
 
 		if (!email || !password || (!role && !customRole)) {
 			return res.status(400).json({ error: 'email, password, and a role (or custom role) are required', context: DEMO_LABEL });
@@ -66,10 +66,9 @@ const handleSignup = async (req, res) => {
 			return res.status(400).json({ error: 'Custom role is too long (max 64 characters)', context: DEMO_LABEL });
 		}
 
-		const countryInput = (country || '').toString().trim().toUpperCase();
-		const resolvedCountry = countryInput || 'US';
-		if (countryInput && !SUPPORTED_COUNTRIES.includes(resolvedCountry)) {
-			return res.status(400).json({ error: 'Unsupported country', allowed: SUPPORTED_COUNTRIES, context: DEMO_LABEL });
+		const countryParsed = parseCountryOfOrigin(req.body || {}, { source: 'signup', required: true });
+		if (!countryParsed.ok) {
+			return res.status(400).json({ error: countryParsed.error || 'Invalid country of origin', context: DEMO_LABEL });
 		}
 		if (password.length < 6) {
 			return res.status(400).json({ error: 'Password must be at least 6 characters', context: DEMO_LABEL });
@@ -106,12 +105,23 @@ const handleSignup = async (req, res) => {
 			password_hash,
 			org_id: org_id || null,
 			patientId: patient_id_value,
-			country: resolvedCountry,
+			country: countryParsed.value.countryCode || null,
+			countryOfOrigin: countryParsed.value,
 		};
 
 		await addUser(user);
 
-		req.session.user = { id: user.id, email: user.email, role: user.role, org_id: user.org_id, patientId: user.patientId };
+		req.session.user = {
+			id: user.id,
+			email: user.email,
+			role: user.role,
+			org_id: user.org_id,
+			patientId: user.patientId,
+			name: user.name,
+			product: user.product,
+			countryOfOrigin: user.countryOfOrigin,
+			country: user.country,
+		};
 		return res.status(201).json({ user: req.session.user, context: DEMO_LABEL });
 	} catch (err) {
 		console.error('[auth/register] error', err);
@@ -139,7 +149,18 @@ router.post('/login', async (req, res) => {
 			return res.status(401).json({ error: 'Invalid credentials', context: DEMO_LABEL });
 		}
 
-		req.session.user = { id: user.id, email: user.email, role: user.role, org_id: user.org_id || null, patientId: user.patientId || null };
+		req.session.user = {
+			id: user.id,
+			email: user.email,
+			role: user.role,
+			org_id: user.org_id || null,
+			patientId: user.patientId || null,
+			name: user.name || null,
+			product: user.product || null,
+			countryOfOrigin: user.countryOfOrigin || null,
+			country: user.country || null,
+			hasCountryOfOrigin: hasCountryOfOrigin(user),
+		};
 		return res.json({ user: req.session.user, context: DEMO_LABEL });
 	} catch (err) {
 		console.error('[auth/login] error', err);

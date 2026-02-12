@@ -2,7 +2,8 @@
 const DATA_KEY = 'telehealth.clinicData.v5';
 const CONFIG_KEY = 'telehealth.config.v1';
 
-const TRIAL_LENGTH_DAYS = 14;
+// Demo trial length (until real billing is wired up)
+const TRIAL_LENGTH_DAYS = 7;
 
 const isoNow = () => new Date().toISOString();
 
@@ -13,7 +14,32 @@ const addDaysIso = (iso, days) => {
 
 const normalizeTier = (tier) => {
   const v = String(tier || '').trim().toLowerCase();
-  return v === 'pro' ? 'pro' : 'free';
+  if (v === 'free') return 'free';
+  if (v === 'basic') return 'basic';
+  if (v === 'premium') return 'premium';
+  if (v === 'gold') return 'gold';
+  // Back-compat: old 2-tier model
+  if (v === 'pro') return 'premium';
+  return 'free';
+};
+
+const normalizeIntentTier = (tier) => {
+  const v = String(tier || '').trim().toLowerCase();
+  if (v === 'free') return 'free';
+  if (v === 'basic') return 'basic';
+  if (v === 'premium') return 'premium';
+  if (v === 'gold') return 'gold';
+  return null;
+};
+
+const normalizePlanIntent = (input, fallback) => {
+  const prev = fallback || null;
+  const raw = input || prev || null;
+  if (!raw) return null;
+  const tier = normalizeIntentTier(raw.tier);
+  if (!tier) return null;
+  const selectedAt = raw.selectedAt || prev?.selectedAt || isoNow();
+  return { tier, selectedAt };
 };
 
 const normalizeStatus = (status) => {
@@ -31,7 +57,8 @@ const normalizeSubscription = (input, fallback) => {
   const startedAt = sub.startedAt || prev.startedAt || isoNow();
   const trialEndsAt = sub.trialEndsAt || prev.trialEndsAt || null;
   const expiresAt = sub.expiresAt || prev.expiresAt || null;
-  return { tier, status, startedAt, trialEndsAt, expiresAt };
+  const planIntent = normalizePlanIntent(sub.planIntent, prev.planIntent);
+  return { tier, status, startedAt, trialEndsAt, expiresAt, planIntent };
 };
 
 const defaultConfig = {
@@ -44,6 +71,7 @@ const defaultConfig = {
     startedAt: isoNow(),
     trialEndsAt: null,
     expiresAt: null,
+    planIntent: null,
   },
   features: {
     chat: true,
@@ -463,23 +491,46 @@ export const ensureSubscriptionFresh = () => {
   if (sub.status === 'trialing' && sub.trialEndsAt) {
     const endsAt = new Date(sub.trialEndsAt).getTime();
     if (Number.isFinite(endsAt) && now > endsAt) {
-      updateSubscription({ tier: 'free', status: 'expired', expiresAt: isoNow() });
+      updateSubscription({ tier: 'free', status: 'expired', expiresAt: isoNow(), trialEndsAt: null });
     }
   }
 
   return getSubscription();
 };
 
-export const startProTrial = () => {
+export const setPlanIntent = (tier) => {
+  const normalizedTier = normalizeIntentTier(tier);
+  const nowIso = isoNow();
+  updateSubscription({
+    planIntent: normalizedTier
+      ? { tier: normalizedTier, selectedAt: nowIso }
+      : null,
+  });
+  return getSubscription();
+};
+
+export const startTrialForTier = (intentTier) => {
+  const normalizedTier = normalizeIntentTier(intentTier) || 'premium';
   const nowIso = isoNow();
   const trialEndsAt = addDaysIso(nowIso, TRIAL_LENGTH_DAYS);
-  updateSubscription({ tier: 'pro', status: 'trialing', startedAt: nowIso, trialEndsAt, expiresAt: null });
+  updateSubscription({
+    tier: normalizedTier,
+    status: 'trialing',
+    startedAt: nowIso,
+    trialEndsAt,
+    expiresAt: null,
+    planIntent: { tier: normalizedTier, selectedAt: nowIso },
+  });
   return getSubscription();
+};
+
+export const startProTrial = () => {
+  return startTrialForTier('premium');
 };
 
 export const upgradeToProDemo = () => {
   const nowIso = isoNow();
-  updateSubscription({ tier: 'pro', status: 'active', startedAt: nowIso, trialEndsAt: null, expiresAt: null });
+  updateSubscription({ tier: 'premium', status: 'active', startedAt: nowIso, trialEndsAt: null, expiresAt: null });
   return getSubscription();
 };
 

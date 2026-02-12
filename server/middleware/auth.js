@@ -1,4 +1,5 @@
 const { findById } = require('../utils/userStore');
+const { hasCountryOfOrigin } = require('../utils/countryOfOrigin');
 
 const DEMO_LABEL = 'Demo / MVP auth';
 
@@ -9,7 +10,18 @@ async function hydrateUser(req) {
   // Ensure the user still exists in the store; fall back to session identity if lookup fails
   const stored = await findById(sessionUser.id);
   const user = stored
-    ? { id: stored.id, email: stored.email, role: stored.role, org_id: stored.org_id || null, patientId: stored.patientId || null }
+    ? {
+        id: stored.id,
+        email: stored.email,
+        role: stored.role,
+        org_id: stored.org_id || null,
+        patientId: stored.patientId || null,
+        name: stored.name || null,
+        product: stored.product || null,
+        countryOfOrigin: stored.countryOfOrigin || null,
+        country: stored.country || null,
+        hasCountryOfOrigin: hasCountryOfOrigin(stored),
+      }
     : sessionUser;
 
   req.user = user;

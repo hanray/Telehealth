@@ -220,6 +220,7 @@ const prescriptionRoutes = require('./routes/prescriptions');
 const transactionRoutes = require('./routes/transactions');
 const planRoutes = require('./routes/plans');
 const subscriptionRoutes = require('./routes/subscriptions');
+const billingRoutes = require('./routes/billing');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
@@ -230,6 +231,7 @@ app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/plans', planRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/billing', billingRoutes);
 
 if (HAS_MONGO) {
   app.use('/api/messages', checkDbConnection, messageRoutes);
