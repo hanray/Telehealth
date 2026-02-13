@@ -20,13 +20,14 @@ import AppointmentModal from './components/AppointmentModal';
 import InsuranceModal from './components/InsuranceModal';
 import RefillModal from './components/RefillModal';
 import ProductPicker, { PRODUCT_CATALOG } from './components/ProductPicker';
-import { getClinicData, updateClinicData, getClinicConfig, onClinicConfigChange, ensureSubscriptionFresh, getSubscription, setPlanIntent, startTrialForTier, startProTrial, upgradeToProDemo, downgradeToFree, updateSubscription } from './config/dataStore';
+import { getClinicData, updateClinicData, getClinicConfig, onClinicConfigChange, ensureSubscriptionFresh, getSubscription, setPlanIntent, startTrialForTier, startProTrial, upgradeToProDemo, purchaseTierDemo, downgradeToFree, updateSubscription } from './config/dataStore';
 import { createAppointment } from './utils/appointmentUtils';
 import { canAccess } from './utils/entitlements';
 import ProFeatureGateModal from './components/ProFeatureGateModal';
 import SubscriptionSettingsModal from './components/SubscriptionSettingsModal';
 import SubscriptionOnboarding from './components/SubscriptionOnboarding';
 import PricingPage from './components/PricingPage';
+import CheckoutPage from './components/CheckoutPage';
 import CountryOfOriginModal from './components/CountryOfOriginModal';
 import { getCountryOptions, isOtherCountry, OTHER_COUNTRY_CODE } from './utils/countries';
 
@@ -578,6 +579,10 @@ const App = () => {
   const [showPricing, setShowPricing] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.location?.pathname === '/pricing';
+  });
+  const [showCheckout, setShowCheckout] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.location?.pathname === '/checkout';
   });
   const [billingStatus, setBillingStatus] = useState({
     provider: 'none',
@@ -2459,9 +2464,10 @@ const App = () => {
   const shouldShowCountryScreen = Boolean(user && showCountryOnboarding);
   const shouldShowSubscriptionScreen = Boolean(user && showSubscriptionOnboarding);
   const shouldShowPricingScreen = Boolean(showPricing);
-  const shouldShowWorkspace = Boolean(user && activePortal && !shouldShowCountryScreen && !shouldShowSubscriptionScreen && !shouldShowPricingScreen);
-  const shouldShowPicker = !shouldShowSubscriptionScreen && !shouldShowCountryScreen && !shouldShowPricingScreen && ((!user && !showLogin) || (user && !activePortal));
-  const shouldShowLoginForm = !shouldShowSubscriptionScreen && !shouldShowCountryScreen && !shouldShowPricingScreen && !user && (showLogin || !!desiredProduct);
+  const shouldShowCheckoutScreen = Boolean(showCheckout);
+  const shouldShowWorkspace = Boolean(user && activePortal && !shouldShowCountryScreen && !shouldShowSubscriptionScreen && !shouldShowPricingScreen && !shouldShowCheckoutScreen);
+  const shouldShowPicker = !shouldShowSubscriptionScreen && !shouldShowCountryScreen && !shouldShowPricingScreen && !shouldShowCheckoutScreen && ((!user && !showLogin) || (user && !activePortal));
+  const shouldShowLoginForm = !shouldShowSubscriptionScreen && !shouldShowCountryScreen && !shouldShowPricingScreen && !shouldShowCheckoutScreen && !user && (showLogin || !!desiredProduct);
 
   const shouldUseNurseLayout = activePortal === 'nurse' || (activePortal === 'telehealth' && effectiveTelehealthView === 'nurse');
 
@@ -2512,23 +2518,61 @@ const App = () => {
                   const next = startTrialForTier(tier);
                   setSubscription(next);
                 }}
-                onContinue={() => {
+                onContinue={(tier) => {
+                  const normalized = String(tier || subscription?.planIntent?.tier || 'premium').trim().toLowerCase();
+                  const next = setPlanIntent(normalized);
+                  setSubscription(next);
+
+                  // Free tier: no checkout needed.
+                  if (normalized === 'free') {
+                    setShowPricing(false);
+                    setShowCheckout(false);
+                    if (user && activePortal) {
+                      window.history.replaceState({}, '', `/${activePortal}`);
+                      return;
+                    }
+                    if (!user) {
+                      setShowSignup(false);
+                      setShowLogin(true);
+                      window.history.replaceState({}, '', '/login');
+                      return;
+                    }
+                    window.history.replaceState({}, '', '/');
+                    return;
+                  }
+
                   setShowPricing(false);
-                  if (user && activePortal) {
-                    window.history.replaceState({}, '', `/${activePortal}`);
-                    return;
-                  }
-                  if (!user) {
-                    setShowSignup(false);
-                    setShowLogin(true);
-                    window.history.replaceState({}, '', '/login');
-                    return;
-                  }
-                  window.history.replaceState({}, '', '/');
+                  setShowCheckout(true);
+                  window.history.replaceState({}, '', '/checkout');
                 }}
               />
             </Col>
           </Row>
+        )}
+
+        {shouldShowCheckoutScreen && (
+          <CheckoutPage
+            t={t}
+            user={user}
+            planTier={subscription?.planIntent?.tier || 'premium'}
+            onBack={() => {
+              setShowCheckout(false);
+              setShowPricing(true);
+              window.history.replaceState({}, '', '/pricing');
+            }}
+            onConfirm={({ tier }) => {
+              const next = purchaseTierDemo(tier);
+              setSubscription(next);
+              setShowCheckout(false);
+
+              // After checkout, go to active workspace if possible.
+              if (user && activePortal) {
+                window.history.replaceState({}, '', `/${activePortal}`);
+                return;
+              }
+              window.history.replaceState({}, '', '/');
+            }}
+          />
         )}
 
         {shouldShowCountryScreen && (

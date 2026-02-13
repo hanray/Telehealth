@@ -534,6 +534,20 @@ export const upgradeToProDemo = () => {
   return getSubscription();
 };
 
+export const purchaseTierDemo = (tier) => {
+  const normalizedTier = normalizeTier(tier);
+  const nowIso = isoNow();
+  updateSubscription({
+    tier: normalizedTier,
+    status: 'active',
+    startedAt: nowIso,
+    trialEndsAt: null,
+    expiresAt: null,
+    planIntent: normalizedTier === 'free' ? null : { tier: normalizedTier, selectedAt: nowIso },
+  });
+  return getSubscription();
+};
+
 export const downgradeToFree = () => {
   const nowIso = isoNow();
   updateSubscription({ tier: 'free', status: 'active', startedAt: nowIso, trialEndsAt: null, expiresAt: null });

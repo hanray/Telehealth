@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navbar, Container, Nav, Badge, Button, Form } from 'react-bootstrap';
+import logo from '../assets/my-homecare-online-logo.svg';
 
 const Navigation = ({
   user,
@@ -22,7 +23,14 @@ const Navigation = ({
     style={{ background: 'var(--color-surface-black, #272626)', color: 'var(--color-text-inverse, #ffffff)' }}
   >
     <Container fluid>
-      <Navbar.Brand className="text-white">{t('Telehealth Console')}</Navbar.Brand>
+      <Navbar.Brand className="text-white">
+        <img
+          src={logo}
+          alt={t('My HomeCare Online')}
+          style={{ height: 28, width: 'auto', marginRight: 10, verticalAlign: 'middle' }}
+        />
+        <span style={{ verticalAlign: 'middle' }}>{t('My HomeCare Online')}</span>
+      </Navbar.Brand>
       <Navbar.Toggle aria-controls="nav" />
       <Navbar.Collapse id="nav">
         <Nav className="me-auto">

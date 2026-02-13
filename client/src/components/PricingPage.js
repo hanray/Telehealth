@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Card, Button, Row, Col, Badge, Alert } from 'react-bootstrap';
+import { Card, Button, Row, Col, Badge, Alert, Form } from 'react-bootstrap';
 
 const TIERS = [
   {
@@ -60,7 +60,7 @@ const PricingPage = ({
   onContinue,
   t = (s) => s,
 }) => {
-  const selectedTier = String(planIntent?.tier || '').toLowerCase() || null;
+  const selectedTier = String(planIntent?.tier || '').toLowerCase() || 'premium';
 
   const header = useMemo(() => {
     return (
@@ -84,73 +84,77 @@ const PricingPage = ({
         </div>
       </Alert>
 
-      <Row className="g-3">
-        {TIERS.map((tier) => {
-          const isSelected = selectedTier === tier.key;
-          const border = tier.highlight ? 'border-primary' : '';
-          return (
-            <Col key={tier.key} md={6} xl={3}>
-              <Card className={`h-100 ${border}`}>
-                <Card.Body className="d-flex flex-column">
-                  <div className="d-flex justify-content-between align-items-start">
-                    <div>
-                      <div className="fw-bold">{t(tier.name)}</div>
-                      <div className="text-muted small">{t('Price')}: {tier.price}</div>
+      <Form>
+        <Row className="g-3">
+          {TIERS.map((tier) => {
+            const isSelected = selectedTier === tier.key;
+            const border = tier.highlight ? 'border-primary' : '';
+            return (
+              <Col key={tier.key} md={6} xl={3}>
+                <Card
+                  className={`h-100 ${border}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onChoosePlan?.(tier.key)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') onChoosePlan?.(tier.key);
+                  }}
+                >
+                  <Card.Body className="d-flex flex-column">
+                    <div className="d-flex justify-content-between align-items-start gap-2">
+                      <div>
+                        <div className="d-flex align-items-center gap-2">
+                          <Form.Check
+                            type="radio"
+                            name="pricingTier"
+                            id={`tier-${tier.key}`}
+                            checked={isSelected}
+                            onChange={() => onChoosePlan?.(tier.key)}
+                            aria-label={t('Select plan')}
+                          />
+                          <div className="fw-bold">{t(tier.name)}</div>
+                        </div>
+                        <div className="text-muted small ms-4">{t('Price')}: {tier.price}</div>
+                      </div>
+                      {tier.highlight && <Badge bg="primary">{t('Popular')}</Badge>}
                     </div>
-                    {tier.highlight && <Badge bg="primary">{t('Popular')}</Badge>}
-                  </div>
 
-                  <ul className="mt-3 mb-3">
-                    {tier.bullets.map((b) => (
-                      <li key={b}>{t(b)}</li>
-                    ))}
-                  </ul>
+                    <ul className="mt-3 mb-3">
+                      {tier.bullets.map((b) => (
+                        <li key={b}>{t(b)}</li>
+                      ))}
+                    </ul>
 
-                  <div className="mt-auto d-grid gap-2">
-                    {tier.key === 'free' ? (
-                      <Button
-                        variant={isSelected ? 'secondary' : 'outline-secondary'}
-                        onClick={() => onChoosePlan?.('free')}
-                      >
-                        {isSelected ? t('Selected') : t('Choose Free')}
-                      </Button>
-                    ) : (
-                      <>
+                    {tier.key !== 'free' && (
+                      <div className="mt-auto d-grid">
                         <Button
-                          variant="primary"
-                          onClick={() => {
+                          variant="outline-primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
                             onChoosePlan?.(tier.key);
                             onStartTrial?.(tier.key);
                           }}
                         >
                           {t('Start 1-week trial')}
                         </Button>
-                        <Button
-                          variant={isSelected ? 'secondary' : 'outline-primary'}
-                          onClick={() => onChoosePlan?.(tier.key)}
-                        >
-                          {isSelected ? t('Selected') : t('Choose plan')}
-                        </Button>
-                      </>
+                      </div>
                     )}
+                  </Card.Body>
+                </Card>
+              </Col>
+            );
+          })}
+        </Row>
 
-                    <Button
-                      variant="link"
-                      className="p-0 text-start"
-                      onClick={() => {
-                        onChoosePlan?.(tier.key);
-                        onContinue?.();
-                      }}
-                    >
-                      {t('Continue')}
-                    </Button>
-                  </div>
-                </Card.Body>
-              </Card>
-            </Col>
-          );
-        })}
-      </Row>
+        <div className="d-flex flex-wrap gap-2 justify-content-end mt-4">
+          <Button
+            variant="primary"
+            onClick={() => onContinue?.(selectedTier)}
+          >
+            {t('Continue')}
+          </Button>
+        </div>
+      </Form>
     </div>
   );
 };

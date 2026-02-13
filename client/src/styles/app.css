@@ -1,5 +1,10 @@
 :root {
   --bg: #f7fafc;
+  --brand-primary: #1E6FA8;
+  --brand-primary-rgb: 30, 111, 168;
+  --bs-primary: var(--brand-primary);
+  --bs-primary-rgb: var(--brand-primary-rgb);
+  --bs-link-color: var(--brand-primary);
 }
 
 body {
@@ -34,12 +39,12 @@ body {
 }
 
 .product-card.active {
-  border-color: #2f80ed;
-  box-shadow: 0 18px 56px -22px rgba(47, 128, 237, 0.35);
+  border-color: var(--brand-primary);
+  box-shadow: 0 18px 56px -22px rgba(var(--brand-primary-rgb), 0.35);
 }
 
 .product-card .product-cta {
-  color: #2f80ed;
+  color: var(--brand-primary);
   font-weight: 700;
   letter-spacing: 0.01em;
 }
@@ -77,7 +82,7 @@ body {
 
 .portal-btn.doctor { background: #2f9e44; }
 .portal-btn.nurse { background: #1c7c3d; }
-.portal-btn.patient { background: #2f80ed; }
+.portal-btn.patient { background: var(--brand-primary); }
 .portal-btn.admin { background: #d77848; }
 
 .portal-btn:hover { filter: brightness(0.95); }
