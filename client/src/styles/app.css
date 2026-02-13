@@ -23,6 +23,7 @@ body {
 
 .product-card {
   all: unset;
+  box-sizing: border-box;
   cursor: pointer;
   padding: 1.25rem;
   border-radius: 16px;
