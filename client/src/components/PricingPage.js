@@ -58,9 +58,11 @@ const PricingPage = ({
   onChoosePlan,
   onStartTrial,
   onContinue,
+  onBack,
   t = (s) => s,
 }) => {
   const selectedTier = String(planIntent?.tier || '').toLowerCase() || 'premium';
+  const hasBack = typeof onBack === 'function';
 
   const header = useMemo(() => {
     return (
@@ -129,6 +131,7 @@ const PricingPage = ({
                       <div className="mt-auto d-grid">
                         <Button
                           variant="outline-primary"
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             onChoosePlan?.(tier.key);
@@ -146,9 +149,15 @@ const PricingPage = ({
           })}
         </Row>
 
-        <div className="d-flex flex-wrap gap-2 justify-content-end mt-4">
+        <div className={`d-flex flex-wrap gap-2 mt-4 ${hasBack ? 'justify-content-between' : 'justify-content-end'}`}>
+          {hasBack && (
+            <Button variant="outline-secondary" type="button" onClick={onBack}>
+              {t('Back')}
+            </Button>
+          )}
           <Button
             variant="primary"
+            type="button"
             onClick={() => onContinue?.(selectedTier)}
           >
             {t('Continue')}

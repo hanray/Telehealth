@@ -580,10 +580,61 @@ const App = () => {
     if (typeof window === 'undefined') return false;
     return window.location?.pathname === '/pricing';
   });
+  const [pricingReturnPath, setPricingReturnPath] = useState(() => {
+    if (typeof window === 'undefined') return '/';
+    // If someone deep-links directly to /pricing, we default back to home.
+    return '/';
+  });
   const [showCheckout, setShowCheckout] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.location?.pathname === '/checkout';
   });
+
+  const openPricing = () => {
+    const currentPath = typeof window !== 'undefined' ? (window.location?.pathname || '/') : '/';
+    setPricingReturnPath(currentPath && currentPath !== '/pricing' ? currentPath : '/');
+    setShowPricing(true);
+    setShowCheckout(false);
+    setShowSignup(false);
+    setShowLogin(false);
+    window.history.replaceState({}, '', '/pricing');
+  };
+
+  const closePricingTo = (targetPath) => {
+    const path = String(targetPath || '/').trim() || '/';
+    setShowPricing(false);
+
+    if (path === '/checkout') {
+      setShowCheckout(true);
+      window.history.replaceState({}, '', '/checkout');
+      return;
+    }
+
+    setShowCheckout(false);
+
+    if (path === '/signup') {
+      setShowSignup(true);
+      setShowLogin(true);
+      window.history.replaceState({}, '', '/signup');
+      return;
+    }
+
+    if (path === '/login') {
+      setShowSignup(false);
+      setShowLogin(true);
+      window.history.replaceState({}, '', '/login');
+      return;
+    }
+
+    // Default: return to workspace if available, otherwise home (picker).
+    setShowSignup(false);
+    setShowLogin(false);
+    if (user && activePortal) {
+      window.history.replaceState({}, '', `/${activePortal}`);
+      return;
+    }
+    window.history.replaceState({}, '', '/');
+  };
   const [billingStatus, setBillingStatus] = useState({
     provider: 'none',
     configured: false,
@@ -2479,7 +2530,7 @@ const App = () => {
         isAdmin={user?.role === 'admin'}
         onOpenSettings={() => setShowSettings(true)}
         onLogin={() => { setShowSignup(false); setShowLogin(true); window.history.replaceState({}, '', '/login'); }}
-        onOpenPricing={() => { setShowPricing(true); setShowSignup(false); setShowLogin(false); window.history.replaceState({}, '', '/pricing'); }}
+        onOpenPricing={openPricing}
         showPricingAction
         showLoginAction={!user}
         languages={SUPPORTED_LANGUAGES}
@@ -2501,6 +2552,7 @@ const App = () => {
               <PricingPage
                 t={t}
                 planIntent={subscription?.planIntent || null}
+                onBack={() => closePricingTo(pricingReturnPath)}
                 onChoosePlan={(tier) => {
                   const next = setPlanIntent(tier);
                   setSubscription(next);
@@ -2556,6 +2608,7 @@ const App = () => {
             user={user}
             planTier={subscription?.planIntent?.tier || 'premium'}
             onBack={() => {
+              setPricingReturnPath('/checkout');
               setShowCheckout(false);
               setShowPricing(true);
               window.history.replaceState({}, '', '/pricing');
