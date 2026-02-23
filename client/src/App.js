@@ -30,6 +30,8 @@ import PricingPage from './components/PricingPage';
 import CheckoutPage from './components/CheckoutPage';
 import CountryOfOriginModal from './components/CountryOfOriginModal';
 import { getCountryOptions, isOtherCountry, OTHER_COUNTRY_CODE } from './utils/countries';
+import { getAllowedWorkspacesForUser, normalizeWorkspace } from './utils/workspaces';
+import homecareLogo from './assets/my-homecare-online-logo.svg';
 
 const SUPPORTED_LANGUAGES = [
   { code: 'en-US', label: 'English (US)', flag: '🇺🇸' },
@@ -444,6 +446,53 @@ const normalizeProductKey = (product) => {
   return LEGACY_PRODUCT_ALIASES[key] || key || null;
 };
 
+const LAST_SELECTED_WORKSPACE_KEY = 'lastSelectedWorkspace';
+
+const getStoredWorkspace = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    return normalizeWorkspace(localStorage.getItem(LAST_SELECTED_WORKSPACE_KEY));
+  } catch (err) {
+    return null;
+  }
+};
+
+const persistWorkspace = (workspace) => {
+  const normalized = normalizeWorkspace(workspace);
+  if (typeof window === 'undefined') return normalized;
+  try {
+    if (!normalized) {
+      localStorage.removeItem(LAST_SELECTED_WORKSPACE_KEY);
+      return null;
+    }
+    localStorage.setItem(LAST_SELECTED_WORKSPACE_KEY, normalized);
+  } catch (err) {
+    // ignore persistence errors
+  }
+  return normalized;
+};
+
+const resolveWorkspaceForUser = ({ nextUser, preferredWorkspace, useStoredWorkspace = true }) => {
+  const allowedWorkspaces = getAllowedWorkspacesForUser(nextUser);
+  const preferred = normalizeWorkspace(preferredWorkspace);
+  if (preferred && allowedWorkspaces.includes(preferred)) {
+    return { allowedWorkspaces, workspace: preferred };
+  }
+
+  if (useStoredWorkspace) {
+    const stored = getStoredWorkspace();
+    if (stored && allowedWorkspaces.includes(stored)) {
+      return { allowedWorkspaces, workspace: stored };
+    }
+  }
+
+  if (allowedWorkspaces.length === 1) {
+    return { allowedWorkspaces, workspace: allowedWorkspaces[0] };
+  }
+
+  return { allowedWorkspaces, workspace: null };
+};
+
 const getInitialProductFromPath = () => {
   if (typeof window === 'undefined') return null;
   const slug = window.location.pathname.replace(/^\/+/, '').split('/')[0];
@@ -497,6 +546,7 @@ const getProductTitle = (product) => PRODUCT_CATALOG.find((p) => p.key === produ
 
 const App = () => {
   const [user, setUser] = useState(null);
+  const allowedWorkspaces = useMemo(() => getAllowedWorkspacesForUser(user), [user]);
   const [activePortal, setActivePortal] = useState(null); // which dashboard to show after login
   const [loadingUser, setLoadingUser] = useState(true);
   const [authError, setAuthError] = useState('');
@@ -511,7 +561,7 @@ const App = () => {
       return null;
     }
   });
-  const [showLogin, setShowLogin] = useState(() => getInitialLoginView() || getInitialSignupView() || Boolean(getInitialProductFromPath()));
+  const [showLogin, setShowLogin] = useState(() => true);
   const [showSignup, setShowSignup] = useState(() => getInitialSignupView());
   const [showPasswordReset, setShowPasswordReset] = useState(() => typeof window !== 'undefined' && window.location.pathname === '/reset-password');
   const [passwordResetSubmitted, setPasswordResetSubmitted] = useState(false);
@@ -666,15 +716,21 @@ const App = () => {
         const data = await fetchJson('/api/auth/me');
         const nextUser = decorateUserForView(data.user);
         setUser(nextUser);
-        const targetProduct = normalizeProductKey(desiredProduct) || (nextUser?.role === 'admin' ? 'telehealth' : null);
-        if (targetProduct && targetProduct !== desiredProduct) {
-          setDesiredProduct(targetProduct);
+        const { workspace: targetWorkspace } = resolveWorkspaceForUser({
+          nextUser,
+          preferredWorkspace: desiredProduct,
+          useStoredWorkspace: true,
+        });
+
+        if (targetWorkspace !== desiredProduct) {
+          setDesiredProduct(targetWorkspace || null);
         }
-        const portal = resolvePortalFromProduct(targetProduct, nextUser);
+
+        const portal = resolvePortalFromProduct(targetWorkspace, nextUser);
 
 		// If user profile is missing required Country of Origin, block entry until completed.
 		if (nextUser && !nextUser.hasCountryOfOrigin) {
-			pendingCountryRef.current = { portal, targetProduct };
+			pendingCountryRef.current = { portal, targetWorkspace };
 			setActivePortal(null);
 			setShowLogin(false);
 			setShowSignup(false);
@@ -685,8 +741,12 @@ const App = () => {
 
         setActivePortal(portal);
         setShowLogin(false);
-        if (portal && targetProduct) {
-          window.history.replaceState({}, '', `/${targetProduct}`);
+        setShowSignup(false);
+        if (portal && targetWorkspace) {
+          persistWorkspace(targetWorkspace);
+          window.history.replaceState({}, '', `/${targetWorkspace}`);
+        } else {
+          window.history.replaceState({}, '', '/');
         }
       } catch (err) {
         setUser(null);
@@ -779,6 +839,34 @@ const App = () => {
   useEffect(() => {
     setQuickActionMessage('');
   }, [activePortal]);
+
+  useEffect(() => {
+    if (!user || activePortal) return;
+    if (allowedWorkspaces.length !== 1) return;
+    if (showCountryOnboarding || showSubscriptionOnboarding || showPricing || showCheckout) return;
+
+    const forcedWorkspace = allowedWorkspaces[0];
+    const portal = resolvePortalFromProduct(forcedWorkspace, user);
+    if (!portal) return;
+
+    if (desiredProduct !== forcedWorkspace) {
+      setDesiredProduct(forcedWorkspace);
+    }
+    setShowLogin(false);
+    setShowSignup(false);
+    setActivePortal(portal);
+    persistWorkspace(forcedWorkspace);
+    window.history.replaceState({}, '', `/${forcedWorkspace}`);
+  }, [
+    user,
+    activePortal,
+    allowedWorkspaces,
+    showCountryOnboarding,
+    showSubscriptionOnboarding,
+    showPricing,
+    showCheckout,
+    desiredProduct,
+  ]);
 
   useEffect(() => {
     const loadPrescriptions = async () => {
@@ -1097,14 +1185,18 @@ const App = () => {
       setSubscription(sub);
       const nextUser = decorateUserForView(data.user);
       setUser(nextUser);
-      const targetProduct = normalizeProductKey(desiredProduct) || (nextUser?.role === 'admin' ? 'telehealth' : null);
-      if (targetProduct && targetProduct !== desiredProduct) {
-        setDesiredProduct(targetProduct);
+      const { workspace: targetWorkspace } = resolveWorkspaceForUser({
+        nextUser,
+        preferredWorkspace: desiredProduct,
+        useStoredWorkspace: true,
+      });
+      if (targetWorkspace !== desiredProduct) {
+        setDesiredProduct(targetWorkspace || null);
       }
-      const portal = resolvePortalFromProduct(targetProduct, nextUser);
+      const portal = resolvePortalFromProduct(targetWorkspace, nextUser);
 
       if (nextUser && !nextUser.hasCountryOfOrigin) {
-        pendingCountryRef.current = { portal, targetProduct };
+        pendingCountryRef.current = { portal, targetWorkspace };
         setActivePortal(null);
         setShowLogin(false);
         setShowSignup(false);
@@ -1116,8 +1208,9 @@ const App = () => {
       setActivePortal(portal);
       setShowLogin(false);
       setShowSignup(false);
-      if (portal && targetProduct) {
-        window.history.replaceState({}, '', `/${targetProduct}`);
+      if (portal && targetWorkspace) {
+        persistWorkspace(targetWorkspace);
+        window.history.replaceState({}, '', `/${targetWorkspace}`);
       } else {
         window.history.replaceState({}, '', '/');
       }
@@ -1172,17 +1265,22 @@ const App = () => {
       setSubscription(sub);
       const nextUser = decorateUserForView(data.user);
       setUser(nextUser);
-      const targetProduct = productChoice || normalizeProductKey(desiredProduct) || (nextUser?.role === 'admin' ? 'telehealth' : null);
-      if (targetProduct && targetProduct !== desiredProduct) {
-        setDesiredProduct(targetProduct);
+      const { workspace: targetWorkspace } = resolveWorkspaceForUser({
+        nextUser,
+        preferredWorkspace: productChoice || desiredProduct,
+        useStoredWorkspace: true,
+      });
+      if (targetWorkspace !== desiredProduct) {
+        setDesiredProduct(targetWorkspace || null);
       }
-      const portal = resolvePortalFromProduct(targetProduct, nextUser);
+      const portal = resolvePortalFromProduct(targetWorkspace, nextUser);
       // Typical UX: do not block entry after signup.
       setActivePortal(portal);
       setShowLogin(false);
       setShowSignup(false);
-      if (portal && targetProduct) {
-        window.history.replaceState({}, '', `/${targetProduct}`);
+      if (portal && targetWorkspace) {
+        persistWorkspace(targetWorkspace);
+        window.history.replaceState({}, '', `/${targetWorkspace}`);
       } else {
         window.history.replaceState({}, '', '/');
       }
@@ -1238,12 +1336,13 @@ const App = () => {
       const pending = pendingCountryRef.current || {};
       pendingCountryRef.current = null;
 
-      const portal = pending.portal || resolvePortalFromProduct(normalizeProductKey(desiredProduct), nextUser);
-      const targetProduct = pending.targetProduct || normalizeProductKey(desiredProduct) || null;
+      const portal = pending.portal || resolvePortalFromProduct(normalizeWorkspace(desiredProduct), nextUser);
+      const targetWorkspace = pending.targetWorkspace || normalizeWorkspace(desiredProduct) || null;
 
       setActivePortal(portal);
-      if (portal && targetProduct) {
-        window.history.replaceState({}, '', `/${targetProduct}`);
+      if (portal && targetWorkspace) {
+        persistWorkspace(targetWorkspace);
+        window.history.replaceState({}, '', `/${targetWorkspace}`);
       } else {
         window.history.replaceState({}, '', '/');
       }
@@ -1260,7 +1359,7 @@ const App = () => {
     }
     setUser(null);
     setActivePortal(null);
-    setShowLogin(false);
+    setShowLogin(true);
     setShowSignup(false);
     setShowPasswordReset(false);
     setPasswordResetSubmitted(false);
@@ -1299,14 +1398,34 @@ const App = () => {
 
   const handleProductSelect = (product) => {
     setPasswordResetLink('');
-    const normalized = normalizeProductKey(product);
+    const normalized = normalizeWorkspace(product);
+    if (!normalized) return;
+
     setDesiredProduct(normalized);
+    persistWorkspace(normalized);
     setActivePortal(null);
+
     if (!user) {
       setShowLogin(true);
       window.history.replaceState({}, '', '/login');
       return;
     }
+
+    const allowed = getAllowedWorkspacesForUser(user);
+    if (!allowed.includes(normalized)) {
+      const fallback = allowed[0] || null;
+      setDesiredProduct(fallback);
+      if (!fallback) {
+        window.history.replaceState({}, '', '/');
+        return;
+      }
+      persistWorkspace(fallback);
+      const fallbackPortal = resolvePortalFromProduct(fallback, user);
+      setActivePortal(fallbackPortal);
+      window.history.replaceState({}, '', `/${fallback}`);
+      return;
+    }
+
     const portal = resolvePortalFromProduct(normalized, user);
     setActivePortal(portal);
     window.history.replaceState({}, '', `/${normalized}`);
@@ -2503,100 +2622,348 @@ const App = () => {
     }
   };
 
-  const effectiveTelehealthView = (() => {
-    if (!user) return null;
-    const role = String(user.role || '').trim().toLowerCase();
-    if (role === 'admin') return String(user.viewMode || 'doctor').trim().toLowerCase();
-    if (role === 'doctor' || role === 'specialist' || role === 'pharmacist') return 'doctor';
-    if (role === 'nurse' || role === 'psw') return 'nurse';
-    return role || null;
-  })();
-
   const shouldShowCountryScreen = Boolean(user && showCountryOnboarding);
   const shouldShowSubscriptionScreen = Boolean(user && showSubscriptionOnboarding);
   const shouldShowPricingScreen = Boolean(showPricing);
   const shouldShowCheckoutScreen = Boolean(showCheckout);
   const shouldShowWorkspace = Boolean(user && activePortal && !shouldShowCountryScreen && !shouldShowSubscriptionScreen && !shouldShowPricingScreen && !shouldShowCheckoutScreen);
-  const shouldShowPicker = !shouldShowSubscriptionScreen && !shouldShowCountryScreen && !shouldShowPricingScreen && !shouldShowCheckoutScreen && ((!user && !showLogin) || (user && !activePortal));
+  const shouldShowPicker = !shouldShowSubscriptionScreen
+    && !shouldShowCountryScreen
+    && !shouldShowPricingScreen
+    && !shouldShowCheckoutScreen
+    && (user && !activePortal && allowedWorkspaces.length > 1);
   const shouldShowLoginForm = !shouldShowSubscriptionScreen && !shouldShowCountryScreen && !shouldShowPricingScreen && !shouldShowCheckoutScreen && !user && (showLogin || !!desiredProduct);
 
-  const shouldUseNurseLayout = activePortal === 'nurse' || (activePortal === 'telehealth' && effectiveTelehealthView === 'nurse');
+  const workspaceVisitQueue = useMemo(() => {
+    return (clinicData.appointments || [])
+      .filter((appt) => appt?.status !== 'completed')
+      .sort((a, b) => new Date(a?.startAt || 0) - new Date(b?.startAt || 0));
+  }, [clinicData.appointments]);
+
+  const workspaceActivity = useMemo(() => {
+    return (notifications || [])
+      .slice()
+      .sort((a, b) => new Date(b?.updatedAt || b?.createdAt || 0) - new Date(a?.updatedAt || a?.createdAt || 0))
+      .slice(0, 20);
+  }, [notifications]);
+
+  const workspaceNotificationFeed = useMemo(() => {
+    if (activePortal === 'patient' || user?.role === 'patient') {
+      return patientNotifications.slice().reverse();
+    }
+    return workspaceActivity;
+  }, [activePortal, user, patientNotifications, workspaceActivity]);
+
+  const todayAppointmentsCount = useMemo(() => {
+    const today = new Date().toDateString();
+    return (clinicData.appointments || []).filter((appt) => {
+      if (!appt?.startAt) return false;
+      return new Date(appt.startAt).toDateString() === today;
+    }).length;
+  }, [clinicData.appointments]);
+
+  const totalPatientsCount = (clinicData.patients || []).length;
+  const pendingReviewsCount = pendingLabs.length;
 
   return (
     <div className="app-shell">
-      <Navigation
-        user={user}
-        onLogout={handleLogout}
-        isAdmin={user?.role === 'admin'}
-        onOpenSettings={() => setShowSettings(true)}
-        onLogin={() => { setShowSignup(false); setShowLogin(true); window.history.replaceState({}, '', '/login'); }}
-        onOpenPricing={openPricing}
-        showPricingAction
-        showLoginAction={!user}
-        languages={SUPPORTED_LANGUAGES}
-        selectedLanguage={selectedLanguage}
-        onLanguageChange={setSelectedLanguage}
-        t={t}
-      />
+      {!shouldShowWorkspace && (
+        <Navigation
+          user={user}
+          onLogout={handleLogout}
+          isAdmin={user?.role === 'admin'}
+          onOpenSettings={() => setShowSettings(true)}
+          onLogin={() => { setShowSignup(false); setShowLogin(true); window.history.replaceState({}, '', '/login'); }}
+          onOpenPricing={openPricing}
+          showPricingAction
+          showLoginAction={!user}
+          languages={SUPPORTED_LANGUAGES}
+          selectedLanguage={selectedLanguage}
+          onLanguageChange={setSelectedLanguage}
+          t={t}
+        />
+      )}
 
-      {clinicConfig.banner && (
+      {shouldShowWorkspace && (
+        <div className="workspace-app-shell h-screen overflow-hidden">
+          <div className="workspace-layout d-flex h-full">
+            <aside className="workspace-sidebar shrink-0 border-end d-flex flex-column">
+              <div className="workspace-sidebar-header">
+                <div className="workspace-sidebar-brand">My HomeCare Online</div>
+                <div className="workspace-sidebar-meta text-muted text-uppercase">{user?.role || 'user'}</div>
+                <div className="workspace-sidebar-email text-muted">{user?.email || ''}</div>
+              </div>
+              <div className="workspace-sidebar-menu d-grid gap-2">
+                <Button variant="primary" size="sm" className="text-start">Dashboard</Button>
+                <Button variant="outline-secondary" size="sm" className="text-start" onClick={() => setShowPatients(true)}>Patients</Button>
+                <Button variant="outline-secondary" size="sm" className="text-start" onClick={() => setShowAssignments(true)}>Assignments</Button>
+                {normalizeProductKey(desiredProduct) === 'telehealth' && (
+                  <Button variant="outline-secondary" size="sm" className="text-start" onClick={() => requireAccess('analytics', () => setShowAnalytics(true))}>Analytics</Button>
+                )}
+                <Button variant="outline-secondary" size="sm" className="text-start" onClick={() => setShowSettings(true)}>Settings</Button>
+                <Button variant="outline-danger" size="sm" className="text-start" onClick={handleLogout}>Logout</Button>
+              </div>
+              <div className="workspace-sidebar-logo-wrap mt-auto pt-3">
+                <img src={homecareLogo} alt="My HomeCare Online" className="workspace-sidebar-logo" />
+              </div>
+            </aside>
+
+            <main className="workspace-main flex-1 overflow-y-auto">
+              <div className="workspace-main-container max-w-[1440px] mx-auto px-6 py-6">
+                <section className="TopSummaryBand mb-4">
+                  <Card className="card-plain workspace-topbar mb-3">
+                    <Card.Body className="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                      <div>
+                        <div className="text-uppercase small text-muted fw-semibold">{t('Workspace')}</div>
+                        <div className="fw-bold fs-5">{getProductTitle(desiredProduct) || t('Workspace')}</div>
+                      </div>
+                      <div className="d-flex gap-2">
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          onClick={() => {
+                            setActivePortal(null);
+                            setShowLogin(false);
+                            window.history.replaceState({}, '', '/');
+                          }}
+                        >
+                          {t('Change workspace')}
+                        </Button>
+                        {normalizeProductKey(desiredProduct) === 'telehealth' && (
+                          <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={() => requireAccess('analytics', () => setShowAnalytics(true))}
+                          >
+                            {t('Analytics')}
+                          </Button>
+                        )}
+                        {user?.role === 'admin' && normalizeProductKey(desiredProduct) === 'telehealth' && (
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => {
+                              setUser((prev) => {
+                                const nextMode = String(prev?.viewMode || 'doctor').trim().toLowerCase() === 'doctor' ? 'nurse' : 'doctor';
+                                return { ...prev, viewMode: nextMode };
+                              });
+                            }}
+                          >
+                            {t('Change User View')}
+                          </Button>
+                        )}
+                      </div>
+                    </Card.Body>
+                  </Card>
+
+                  <Card className="card-plain workspace-metrics">
+                    <Card.Body>
+                      <div className="workspace-metrics-grid">
+                        <div className="workspace-metric-item">
+                          <div className="workspace-metric-label">{t("Today's Appointments")}</div>
+                          <div className="workspace-metric-value">{todayAppointmentsCount}</div>
+                        </div>
+                        <div className="workspace-metric-item">
+                          <div className="workspace-metric-label">{t('Total Patients')}</div>
+                          <div className="workspace-metric-value">{totalPatientsCount}</div>
+                        </div>
+                        <div className="workspace-metric-item">
+                          <div className="workspace-metric-label">{t('Pending Reviews')}</div>
+                          <div className="workspace-metric-value">{pendingReviewsCount}</div>
+                        </div>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </section>
+
+                <section className="PrimaryActionsPanel mb-4">
+                  <Card className="card-plain">
+                    <Card.Body>
+                      <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <Card.Title className="mb-0">{t("Today's Actions")}</Card.Title>
+                        <div className="workspace-primary-actions d-flex gap-2 flex-wrap">
+                          {renderQuickActions()}
+                        </div>
+                      </div>
+                      {quickActionMessage && (
+                        <Alert
+                          variant={quickActionVariant}
+                          className="mt-3 mb-0"
+                          dismissible
+                          onClose={() => setQuickActionMessage('')}
+                        >
+                          {quickActionMessage}
+                        </Alert>
+                      )}
+                    </Card.Body>
+                  </Card>
+                </section>
+
+                <section className="WorkspaceGrid grid-desktop-2col">
+                  <div className="workspace-grid-left d-grid gap-3">
+                    <Card className="card-plain">
+                      <Card.Body>
+                        <Card.Title>{t('Visit Queue')}</Card.Title>
+                        <div className="overflow-y-auto" style={{ maxHeight: '420px' }}>
+                          <ListGroup variant="flush">
+                            {workspaceVisitQueue.map((a) => (
+                              <ListGroup.Item key={a.id} className="d-flex justify-content-between align-items-center">
+                                <div>
+                                  <div className="fw-semibold">{a.patientName || t('Patient')}</div>
+                                  <div className="text-muted" style={{ fontSize: 12 }}>
+                                    {a.type || t('Visit')} • {a.startAt ? new Date(a.startAt).toLocaleString() : t('TBD')}
+                                  </div>
+                                </div>
+                                <Badge bg="secondary" className="text-uppercase">{a.status || t('scheduled')}</Badge>
+                              </ListGroup.Item>
+                            ))}
+                            {!workspaceVisitQueue.length && <ListGroup.Item className="text-muted">{t('No upcoming visits.')}</ListGroup.Item>}
+                          </ListGroup>
+                        </div>
+                      </Card.Body>
+                    </Card>
+
+                    <Card className="card-plain">
+                      <Card.Body>
+                        <Card.Title>{t('Appointments')}</Card.Title>
+                        <div className="overflow-x-auto">
+                          <ListGroup variant="flush">
+                            {(clinicData.appointments || []).slice(0, 12).map((appt, idx) => (
+                              <ListGroup.Item key={appt?.id || `${appt?.patientId || 'appt'}_${idx}`} className="d-flex justify-content-between align-items-center">
+                                <div>
+                                  <div className="fw-semibold">{appt?.patientName || t('Patient')}</div>
+                                  <div className="text-muted" style={{ fontSize: 12 }}>{appt?.type || t('Appointment')}</div>
+                                </div>
+                                <div className="text-muted" style={{ fontSize: 12 }}>{appt?.startAt ? new Date(appt.startAt).toLocaleString() : t('TBD')}</div>
+                              </ListGroup.Item>
+                            ))}
+                            {!(clinicData.appointments || []).length && <ListGroup.Item className="text-muted">{t('No appointments.')}</ListGroup.Item>}
+                          </ListGroup>
+                        </div>
+                      </Card.Body>
+                    </Card>
+
+                    <Card className="card-plain">
+                      <Card.Body>
+                        <Card.Title>{t('Care Snapshot')}</Card.Title>
+                        {renderDashboard()}
+                      </Card.Body>
+                    </Card>
+                  </div>
+
+                  <div className="workspace-grid-right d-grid gap-3">
+                    <Card className="card-plain">
+                      <Card.Body>
+                        <Card.Title>{t('Activity')}</Card.Title>
+                        <div className="overflow-y-auto" style={{ maxHeight: '420px' }}>
+                          <ListGroup variant="flush">
+                            {workspaceActivity.map((n) => (
+                              <ListGroup.Item key={n.id}>
+                                <div className="fw-semibold">{n.message || n.type}</div>
+                                <div className="text-muted" style={{ fontSize: 12 }}>
+                                  {n.type}{n.updatedAt ? ` • ${new Date(n.updatedAt).toLocaleString()}` : ''}
+                                </div>
+                              </ListGroup.Item>
+                            ))}
+                            {!workspaceActivity.length && <ListGroup.Item className="text-muted">{t('No recent activity.')}</ListGroup.Item>}
+                          </ListGroup>
+                        </div>
+                      </Card.Body>
+                    </Card>
+
+                    <Card className="card-plain">
+                      <Card.Body>
+                        <Card.Title>{t('Notifications')}</Card.Title>
+                        <div className="overflow-y-auto" style={{ maxHeight: '420px' }}>
+                          <ListGroup variant="flush">
+                            {workspaceNotificationFeed.map((n) => (
+                              <ListGroup.Item key={n.id} className="d-flex justify-content-between align-items-center">
+                                <div>
+                                  <div className="fw-semibold">{n.message || n.type}</div>
+                                  <div className="text-muted" style={{ fontSize: 12 }}>
+                                    {n.type}
+                                    {n.updatedAt ? ` • ${new Date(n.updatedAt).toLocaleString()}` : ''}
+                                  </div>
+                                </div>
+                                <Badge bg={n.read ? 'secondary' : 'primary'} className="text-uppercase">
+                                  {n.read ? t('Read') : t('New')}
+                                </Badge>
+                              </ListGroup.Item>
+                            ))}
+                            {!workspaceNotificationFeed.length && (
+                              <ListGroup.Item className="text-muted">{t('No notifications.')}</ListGroup.Item>
+                            )}
+                          </ListGroup>
+                        </div>
+                      </Card.Body>
+                    </Card>
+                  </div>
+                </section>
+              </div>
+            </main>
+          </div>
+        </div>
+      )}
+
+      {!shouldShowWorkspace && clinicConfig.banner && (
         <Alert variant="info" className="mb-0 rounded-0 text-center">
           {clinicConfig.banner}
         </Alert>
       )}
 
-      <Container className="py-4">
+      {!shouldShowWorkspace && <Container className="py-4">
+        {shouldShowSubscriptionScreen && (
+          <Row className="justify-content-center">
+            <Col xl={10}>
+              <SubscriptionOnboarding
+                t={t}
+                onChooseTier={(tier) => {
+                  const next = setPlanIntent(tier);
+                  setSubscription(next);
+                }}
+                onStartTrial={(tier) => {
+                  const next = startTrialForTier(tier);
+                  setSubscription(next);
+                  setShowSubscriptionOnboarding(false);
+                  if (user && activePortal) {
+                    window.history.replaceState({}, '', `/${activePortal}`);
+                  } else {
+                    window.history.replaceState({}, '', '/');
+                  }
+                }}
+                onCancel={() => {
+                  setShowSubscriptionOnboarding(false);
+                  if (user && activePortal) {
+                    window.history.replaceState({}, '', `/${activePortal}`);
+                  } else {
+                    window.history.replaceState({}, '', '/');
+                  }
+                }}
+              />
+            </Col>
+          </Row>
+        )}
+
         {shouldShowPricingScreen && (
           <Row className="justify-content-center">
             <Col xl={10}>
               <PricingPage
                 t={t}
                 planIntent={subscription?.planIntent || null}
-                onBack={() => closePricingTo(pricingReturnPath)}
                 onChoosePlan={(tier) => {
                   const next = setPlanIntent(tier);
                   setSubscription(next);
                 }}
                 onStartTrial={(tier) => {
-                  if (!user) {
-                    const next = setPlanIntent(tier);
-                    setSubscription(next);
-                    setShowPricing(false);
-                    setShowSignup(true);
-                    setShowLogin(true);
-                    window.history.replaceState({}, '', '/signup');
-                    return;
-                  }
                   const next = startTrialForTier(tier);
                   setSubscription(next);
                 }}
                 onContinue={(tier) => {
-                  const normalized = String(tier || subscription?.planIntent?.tier || 'premium').trim().toLowerCase();
-                  const next = setPlanIntent(normalized);
+                  const next = setPlanIntent(tier);
                   setSubscription(next);
-
-                  // Free tier: no checkout needed.
-                  if (normalized === 'free') {
-                    setShowPricing(false);
-                    setShowCheckout(false);
-                    if (user && activePortal) {
-                      window.history.replaceState({}, '', `/${activePortal}`);
-                      return;
-                    }
-                    if (!user) {
-                      setShowSignup(false);
-                      setShowLogin(true);
-                      window.history.replaceState({}, '', '/login');
-                      return;
-                    }
-                    window.history.replaceState({}, '', '/');
-                    return;
-                  }
-
-                  setShowPricing(false);
-                  setShowCheckout(true);
-                  window.history.replaceState({}, '', '/checkout');
+                  closePricingTo('/checkout');
                 }}
+                onBack={() => closePricingTo(pricingReturnPath)}
               />
             </Col>
           </Row>
@@ -2604,79 +2971,31 @@ const App = () => {
 
         {shouldShowCheckoutScreen && (
           <CheckoutPage
-            t={t}
             user={user}
-            planTier={subscription?.planIntent?.tier || 'premium'}
-            onBack={() => {
-              setPricingReturnPath('/checkout');
-              setShowCheckout(false);
-              setShowPricing(true);
-              window.history.replaceState({}, '', '/pricing');
-            }}
+            planTier={subscription?.planIntent?.tier || subscription?.tier || 'premium'}
+            onBack={() => closePricingTo('/pricing')}
             onConfirm={({ tier }) => {
               const next = purchaseTierDemo(tier);
               setSubscription(next);
               setShowCheckout(false);
-
-              // After checkout, go to active workspace if possible.
               if (user && activePortal) {
                 window.history.replaceState({}, '', `/${activePortal}`);
-                return;
+              } else {
+                window.history.replaceState({}, '', '/');
               }
-              window.history.replaceState({}, '', '/');
             }}
+            t={t}
           />
         )}
 
-        {shouldShowCountryScreen && (
-          <Row className="justify-content-center">
-            <Col xl={6}>
-              <CountryOfOriginModal
-                show
-                allowClose={false}
-                locale={selectedLanguage}
-                t={t}
-                initialCountryCode={user?.countryOfOrigin?.countryCode || user?.country || signupCountry || 'US'}
-                initialOtherText={user?.countryOfOrigin?.countryOtherText || ''}
-                serverError={countrySaveError}
-                onSave={(payload) => completeCountryOnboarding(payload)}
-              />
-            </Col>
-          </Row>
-        )}
-
-        {shouldShowSubscriptionScreen && (
-          <Row className="justify-content-center">
-            <Col xl={8}>
-              <SubscriptionOnboarding
-                t={t}
-                onCancel={() => {
-                  // If they cancel here, we just log them out to avoid a half-created flow.
-                  handleLogout();
-                }}
-                onChooseFree={() => {
-                  const next = downgradeToFree();
-                  finalizePostSignup(next);
-                }}
-                onStartProCheckout={() => {
-                  // no-op hook (kept for future analytics)
-                }}
-                onConfirmProCheckout={() => {
-                  const next = upgradeToProDemo();
-                  finalizePostSignup(next);
-                }}
-              />
-            </Col>
-          </Row>
-        )}
-
         {shouldShowPicker && (
-          <Row className="justify-content-center mb-4">
+          <Row className="justify-content-center">
             <Col xl={10}>
               <ProductPicker
                 onSelectProduct={handleProductSelect}
                 isAdmin={user?.role === 'admin'}
                 selectedProduct={desiredProduct}
+                allowedWorkspaces={user ? allowedWorkspaces : null}
               />
             </Col>
           </Row>
@@ -2689,27 +3008,6 @@ const App = () => {
                 <Card.Body>
                   <div className="d-flex justify-content-between align-items-center mb-2">
                     <Card.Title className="mb-0">{showSignup ? t('Create account') : t('Login')}</Card.Title>
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="p-0"
-                      onClick={() => {
-                        setDesiredProduct(null);
-                        setShowLogin(false);
-                        setShowSignup(false);
-                        setShowPasswordReset(false);
-                        setPasswordResetSubmitted(false);
-                        setPasswordResetEmail('');
-                        setActivePortal(null);
-                        setSelectedRole('patient');
-                        setCustomRole('');
-                        setSignupCountry('US');
-                        setSignupCountryOtherText('');
-                        window.history.replaceState({}, '', '/');
-                      }}
-                    >
-                      ← {t('Back to products')}
-                    </Button>
                   </div>
                   <hr className="mt-0" />
                   {getProductTitle(desiredProduct) && (
@@ -2912,7 +3210,7 @@ const App = () => {
                           <option value="">{t('Select later')}</option>
                           <option value="telehealth">Telehealth</option>
                           <option value="homecare">HomeCare</option>
-                          <option value="admin">Admin</option>
+                          <option value="myhealth">MyHealth</option>
                         </Form.Select>
                       </Form.Group>
                       <div className="d-grid">
@@ -2965,117 +3263,7 @@ const App = () => {
           </Row>
         )}
 
-        {shouldShowWorkspace && (
-          <>
-            <Row className="mb-3">
-              <Col>
-                <Card className="card-plain">
-                  <Card.Body className="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                    <div>
-                      <div className="text-uppercase small text-muted fw-semibold">{t('Workspace')}</div>
-                      <div className="fw-bold">{getProductTitle(desiredProduct) || t('Workspace')}</div>
-                    </div>
-                    <div className="d-flex gap-2">
-                      <Button
-                        variant="outline-secondary"
-                        size="sm"
-                        onClick={() => {
-                          setActivePortal(null);
-                          setShowLogin(false);
-                          window.history.replaceState({}, '', '/');
-                        }}
-                      >
-                        {t('Change workspace')}
-                      </Button>
-                      {normalizeProductKey(desiredProduct) === 'telehealth' && (
-                        <Button
-                          variant="outline-dark"
-                          size="sm"
-                          onClick={() => requireAccess('analytics', () => setShowAnalytics(true))}
-                        >
-                          {t('Analytics')}
-                        </Button>
-                      )}
-                      {user?.role === 'admin' && normalizeProductKey(desiredProduct) === 'telehealth' && (
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={() => {
-                            setUser((prev) => {
-                              const nextMode = String(prev?.viewMode || 'doctor').trim().toLowerCase() === 'doctor' ? 'nurse' : 'doctor';
-                              return { ...prev, viewMode: nextMode };
-                            });
-                          }}
-                        >
-                          {t('Change User View')}
-                        </Button>
-                      )}
-                    </div>
-                  </Card.Body>
-                </Card>
-              </Col>
-            </Row>
-
-            {shouldUseNurseLayout ? (
-              <Row>
-                <Col lg={12} className="mb-3">
-                  {renderDashboard()}
-                </Col>
-              </Row>
-            ) : (
-              <Row>
-                <Col lg={8} className="mb-3">
-                  {renderDashboard()}
-                </Col>
-                <Col lg={4}>
-                  <Card className="card-plain">
-                    <Card.Body>
-                      <Card.Title>{t('Quick actions')}</Card.Title>
-                      {renderQuickActions()}
-                      {quickActionMessage && (
-                        <Alert
-                          variant={quickActionVariant}
-                          className="mt-3 mb-0"
-                          dismissible
-                          onClose={() => setQuickActionMessage('')}
-                        >
-                          {quickActionMessage}
-                        </Alert>
-                      )}
-                    </Card.Body>
-                  </Card>
-                  {(activePortal === 'patient' || user?.role === 'patient') && (
-                    <Card className="card-plain mt-3">
-                      <Card.Body>
-                        <Card.Title>{t('Notifications')}</Card.Title>
-                        <ListGroup variant="flush">
-                          {patientNotifications.slice(-5).reverse().map((n) => (
-                            <ListGroup.Item key={n.id} className="d-flex justify-content-between align-items-center">
-                              <div>
-                                <div className="fw-semibold">{n.message || n.type}</div>
-                                <div className="text-muted" style={{ fontSize: 12 }}>
-                                  {n.type}
-                                  {n.updatedAt ? ` • ${new Date(n.updatedAt).toLocaleString()}` : ''}
-                                </div>
-                              </div>
-                              <Badge bg={n.read ? 'secondary' : 'primary'} className="text-uppercase">
-                                {n.read ? t('Read') : t('New')}
-                              </Badge>
-                            </ListGroup.Item>
-                          ))}
-                          {!patientNotifications.length && (
-                            <ListGroup.Item className="text-muted">{t('No notifications.')}</ListGroup.Item>
-                          )}
-                        </ListGroup>
-                      </Card.Body>
-                    </Card>
-                  )}
-                </Col>
-              </Row>
-            )}
-          </>
-        )}
-      </Container>
+      </Container>}
 
       {user && (
         <PatientAssignmentModule

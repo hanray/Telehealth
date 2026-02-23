@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Card, Button, ListGroup, Badge, Row, Col, Alert, Form, InputGroup, Modal } from 'react-bootstrap';
+import { Card, Button, ListGroup, Badge, Row, Col, Alert, Form, InputGroup, Modal, Accordion } from 'react-bootstrap';
 
 const TelehealthWorkspace = ({
   patients = [],
@@ -361,132 +361,26 @@ const TelehealthWorkspace = ({
       )}
 
       <Card className="card-plain">
-        <Card.Body className="d-flex flex-wrap align-items-center justify-content-between gap-2">
-          <div>
-            <Card.Title className="mb-0">{t('Telehealth Workspace')}</Card.Title>
-            <Card.Subtitle className="text-muted">{t('Unit of work: Visit / Encounter')}</Card.Subtitle>
-          </div>
-          <div className="d-flex gap-2">
-            <Button variant="outline-primary" size="sm" onClick={onOpenChat}>{t('Open chat')}</Button>
-            <Button variant="outline-secondary" size="sm" onClick={onOpenAssignments}>{t('Manage patients')}</Button>
-          </div>
-        </Card.Body>
-      </Card>
-
-      <Card className="card-plain">
         <Card.Body>
-          <Row>
-            <Col sm={4} className="mb-2">
-              <Card className="text-center">
-                <Card.Body>
-                  <div className="fw-semibold">{t("Today's Visits / Encounters")}</div>
-                  <div style={{ fontSize: 26 }}>{todaysAppts.length}</div>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col sm={4} className="mb-2">
-              <Card className="text-center">
-                <Card.Body>
-                  <div className="fw-semibold">{t('Pending Labs')}</div>
-                  <div style={{ fontSize: 26 }}>{pendingLabs.length}</div>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col sm={4} className="mb-2">
-              <Card className="text-center">
-                <Card.Body>
-                  <div className="fw-semibold">{t('Triage Queue')}</div>
-                  <div style={{ fontSize: 26 }}>{activeTriage.length}</div>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <Card.Title className="mb-0">{t('Care Coordination Tools')}</Card.Title>
+            {appliedBanner && <span className="small text-muted">{appliedBanner}</span>}
+          </div>
 
-      <Row className="g-3">
-        <Col lg={7} className="d-flex flex-column gap-3">
-          <Card className="card-plain">
-            <Card.Body>
-              <Card.Title>{t('Visit Queue')}</Card.Title>
-              <ListGroup variant="flush">
-                {upcoming.map((a) => (
-                  <ListGroup.Item key={a.id} className="d-flex justify-content-between align-items-center">
-                    <div>
-                      <div className="fw-semibold">{a.patientName || t('Patient')}</div>
-                      <div className="text-muted" style={{ fontSize: 12 }}>
-                        {a.type || t('Visit')} • {a.startAt ? new Date(a.startAt).toLocaleString() : t('TBD')}
-                      </div>
-                    </div>
-                    <div className="d-flex gap-2 align-items-center">
-                      <Badge bg="secondary" className="text-uppercase">{a.status || t('scheduled')}</Badge>
-                      {a.patientId && readyByPatientId.get(a.patientId) && (
-                        <Badge bg="info" className="text-uppercase">{t('Ready for provider')}</Badge>
-                      )}
-                      <Button size="sm" variant="outline-primary" onClick={() => onOpenVisitSummary && onOpenVisitSummary({ id: a.patientId, name: a.patientName })}>
-                        {t('Visit summary')}
-                      </Button>
-                    </div>
-                  </ListGroup.Item>
-                ))}
-                {!upcoming.length && <ListGroup.Item className="text-muted">{t('No upcoming visits.')}</ListGroup.Item>}
-              </ListGroup>
-            </Card.Body>
-          </Card>
+          <Form.Group className="mb-2">
+            <Form.Label className="small text-muted mb-1">{t('Apply actions to')}</Form.Label>
+            <Form.Select size="sm" value={selectedPatientId} onChange={(e) => setSelectedPatientId(e.target.value)}>
+              <option value="">{t('Auto (triage/visit queue)')}</option>
+              {allSelectablePatients.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </Form.Select>
+          </Form.Group>
 
-          <Card className="card-plain">
-            <Card.Body>
-              <Card.Title>{t('Lab Review')}</Card.Title>
-              <ListGroup variant="flush">
-                {pendingLabs.map((lab) => (
-                  <ListGroup.Item key={lab.id} className="d-flex justify-content-between align-items-center">
-                    <div>
-                      <div className="fw-semibold">{lab.testName || lab.labType || t('Lab test')}</div>
-                      <div className="text-muted" style={{ fontSize: 12 }}>
-                        {lab.patientName || t('Patient')} • {lab.date || ''}
-                      </div>
-                      <div className="text-muted" style={{ fontSize: 12 }}>
-                        {t('Requested by')} {String(lab.requestedByRole || 'nurse').toUpperCase()} • {t('Assigned to')} {providerLabelById(lab.assignedToUserId)} • {String(lab.status || '').replace(/_/g, ' ')}
-                      </div>
-                    </div>
-                    <div className="d-flex gap-2 align-items-center">
-                      {onOpenLab && (
-                        <Button size="sm" variant="outline-primary" onClick={() => onOpenLab(lab)}>
-                          {t('Open')}
-                        </Button>
-                      )}
-                      <Badge bg={lab.status === 'requested' ? 'info' : lab.status === 'in_review' ? 'primary' : 'warning'} text={lab.status === 'requested' ? 'light' : 'dark'}>
-                        {t(String(lab.status || 'pending_review').replace(/_/g, ' '))}
-                      </Badge>
-                    </div>
-                  </ListGroup.Item>
-                ))}
-                {!pendingLabs.length && <ListGroup.Item className="text-muted">{t('No pending labs.')}</ListGroup.Item>}
-              </ListGroup>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col lg={5} className="d-flex flex-column gap-3">
-          <Card className="card-plain">
-            <Card.Body>
-              <Card.Title>{t('Quick actions (Visits / Triage)')}</Card.Title>
-              {appliedBanner && (
-                <div className="small text-muted mb-2">{appliedBanner}</div>
-              )}
-
-              <Form.Group className="mb-2">
-                <Form.Label className="small text-muted mb-1">{t('Apply actions to')}</Form.Label>
-                <Form.Select size="sm" value={selectedPatientId} onChange={(e) => setSelectedPatientId(e.target.value)}>
-                  <option value="">{t('Auto (triage/visit queue)')}</option>
-                  {allSelectablePatients.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </Form.Select>
-              </Form.Group>
-
-              <div className="border rounded p-2 mb-2">
-                <div className="small fw-semibold mb-2">{t('Request labs')}</div>
+          <Accordion alwaysOpen>
+            <Accordion.Item eventKey="0">
+              <Accordion.Header>{t('Request labs')}</Accordion.Header>
+              <Accordion.Body>
                 <Row className="g-2">
                   <Col md={6}>
                     <Form.Select size="sm" value={labType} onChange={(e) => setLabType(e.target.value)}>
@@ -524,10 +418,12 @@ const TelehealthWorkspace = ({
                 <div className="d-grid mt-2">
                   <Button size="sm" variant="outline-secondary" onClick={handleRequestLabs}>{t('Request labs')}</Button>
                 </div>
-              </div>
+              </Accordion.Body>
+            </Accordion.Item>
 
-              <div className="border rounded p-2 mb-2">
-                <div className="small fw-semibold mb-2">{t('Send intake form')}</div>
+            <Accordion.Item eventKey="1">
+              <Accordion.Header>{t('Send intake form')}</Accordion.Header>
+              <Accordion.Body>
                 <InputGroup className="mb-2">
                   <InputGroup.Text>{t('Reason')}</InputGroup.Text>
                   <Form.Control
@@ -567,32 +463,104 @@ const TelehealthWorkspace = ({
                 <div className="d-grid mt-2">
                   <Button size="sm" variant="outline-secondary" onClick={handleSendIntake}>{t('Send intake form')}</Button>
                 </div>
-              </div>
+              </Accordion.Body>
+            </Accordion.Item>
 
-              <div className="d-grid gap-2">
-                <Button size="sm" variant="primary" onClick={onStartVisit || (() => {})}>{t('Join visit room')}</Button>
-                <Button
-                  size="sm"
-                  variant="outline-primary"
-                  onClick={openRequestModal}
-                  disabled={!canRequestAssignment}
-                >
-                  {t('Request provider assignment')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline-primary"
-                  onClick={openEscalateModal}
-                  disabled={!canEscalate}
-                >
-                  {t('Escalate to provider')}
-                </Button>
-                <Button size="sm" variant="outline-secondary" onClick={onCreateFollowUp}>{t('Create follow-up')}</Button>
-                <Button size="sm" variant="outline-success" onClick={handleMarkComplete}>{t('Mark triage complete')}</Button>
-                <Button size="sm" variant="outline-dark" onClick={onOpenChat}>{t('Open chat')}</Button>
-              </div>
+            <Accordion.Item eventKey="2">
+              <Accordion.Header>{t('Provider workflows')}</Accordion.Header>
+              <Accordion.Body>
+                <div className="d-grid gap-2">
+                  <Button size="sm" variant="primary" onClick={onStartVisit || (() => {})}>{t('Join visit room')}</Button>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={openRequestModal}
+                    disabled={!canRequestAssignment}
+                  >
+                    {t('Request provider assignment')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={openEscalateModal}
+                    disabled={!canEscalate}
+                  >
+                    {t('Escalate to provider')}
+                  </Button>
+                  <Button size="sm" variant="outline-secondary" onClick={onCreateFollowUp}>{t('Create follow-up')}</Button>
+                  <Button size="sm" variant="outline-secondary" onClick={handleMarkComplete}>{t('Mark triage complete')}</Button>
+                  <Button size="sm" variant="outline-secondary" onClick={onOpenChat}>{t('Open chat')}</Button>
+                </div>
+              </Accordion.Body>
+            </Accordion.Item>
+          </Accordion>
+        </Card.Body>
+      </Card>
+
+      <Row className="g-3">
+        <Col lg={7} className="d-flex flex-column gap-3">
+          <Card className="card-plain">
+            <Card.Body>
+              <Card.Title>{t('Visit Queue')}</Card.Title>
+              <ListGroup variant="flush">
+                {upcoming.map((a) => (
+                  <ListGroup.Item key={a.id} className="d-flex justify-content-between align-items-center">
+                    <div>
+                      <div className="fw-semibold">{a.patientName || t('Patient')}</div>
+                      <div className="text-muted" style={{ fontSize: 12 }}>
+                        {a.type || t('Visit')} • {a.startAt ? new Date(a.startAt).toLocaleString() : t('TBD')}
+                      </div>
+                    </div>
+                    <div className="d-flex gap-2 align-items-center">
+                      <Badge bg="light" text="dark" className="text-uppercase">{a.status || t('scheduled')}</Badge>
+                      {a.patientId && readyByPatientId.get(a.patientId) && (
+                        <Badge bg="success" className="text-uppercase">{t('Ready for provider')}</Badge>
+                      )}
+                      <Button size="sm" variant="outline-secondary" onClick={() => onOpenVisitSummary && onOpenVisitSummary({ id: a.patientId, name: a.patientName })}>
+                        {t('Visit summary')}
+                      </Button>
+                    </div>
+                  </ListGroup.Item>
+                ))}
+                {!upcoming.length && <ListGroup.Item className="text-muted">{t('No upcoming visits.')}</ListGroup.Item>}
+              </ListGroup>
             </Card.Body>
           </Card>
+
+          <Card className="card-plain">
+            <Card.Body>
+              <Card.Title>{t('Lab Review')}</Card.Title>
+              <ListGroup variant="flush">
+                {pendingLabs.map((lab) => (
+                  <ListGroup.Item key={lab.id} className="d-flex justify-content-between align-items-center">
+                    <div>
+                      <div className="fw-semibold">{lab.testName || lab.labType || t('Lab test')}</div>
+                      <div className="text-muted" style={{ fontSize: 12 }}>
+                        {lab.patientName || t('Patient')} • {lab.date || ''}
+                      </div>
+                      <div className="text-muted" style={{ fontSize: 12 }}>
+                        {t('Requested by')} {String(lab.requestedByRole || 'nurse').toUpperCase()} • {t('Assigned to')} {providerLabelById(lab.assignedToUserId)} • {String(lab.status || '').replace(/_/g, ' ')}
+                      </div>
+                    </div>
+                    <div className="d-flex gap-2 align-items-center">
+                      {onOpenLab && (
+                        <Button size="sm" variant="outline-secondary" onClick={() => onOpenLab(lab)}>
+                          {t('Open')}
+                        </Button>
+                      )}
+                      <Badge bg={lab.status === 'in_review' ? 'warning' : 'light'} text="dark">
+                        {t(String(lab.status || 'pending_review').replace(/_/g, ' '))}
+                      </Badge>
+                    </div>
+                  </ListGroup.Item>
+                ))}
+                {!pendingLabs.length && <ListGroup.Item className="text-muted">{t('No pending labs.')}</ListGroup.Item>}
+              </ListGroup>
+            </Card.Body>
+          </Card>
+        </Col>
+
+        <Col lg={5} className="d-flex flex-column gap-3">
 
           <Card className="card-plain">
             <Card.Body>
@@ -606,7 +574,7 @@ const TelehealthWorkspace = ({
                         {t('To')}: {providerLabelById(n.recipientId) || patientLabelById(n.recipientId)} • {n.contextType}{n.contextId ? ` • ${n.contextId}` : ''}
                       </div>
                     </div>
-                    <Badge bg="secondary" className="text-uppercase">{String(n.type || 'notice').replace(/_/g, ' ')}</Badge>
+                    <Badge bg="light" text="dark" className="text-uppercase">{String(n.type || 'notice').replace(/_/g, ' ')}</Badge>
                   </ListGroup.Item>
                 ))}
                 {!activity.length && <ListGroup.Item className="text-muted">{t('No recent activity.')}</ListGroup.Item>}
@@ -624,7 +592,7 @@ const TelehealthWorkspace = ({
                       <div className="fw-semibold d-flex align-items-center gap-2">
                         <span>{p.name}</span>
                         {intakeStatusByPatientId?.[p.id] === 'sent' && (
-                          <Badge bg="info" className="text-uppercase">{t('Intake sent')}</Badge>
+                          <Badge bg="warning" className="text-uppercase">{t('Intake sent')}</Badge>
                         )}
                         {intakeStatusByPatientId?.[p.id] === 'received' && (
                           <Badge bg="success" className="text-uppercase">{t('Intake received')}</Badge>
@@ -633,7 +601,7 @@ const TelehealthWorkspace = ({
                       <div className="text-muted" style={{ fontSize: 12 }}>{p.id}</div>
                     </div>
                     <div className="d-flex gap-2">
-                      <Button size="sm" variant="outline-primary" onClick={() => onOpenVisitSummary && onOpenVisitSummary(p)}>
+                      <Button size="sm" variant="outline-secondary" onClick={() => onOpenVisitSummary && onOpenVisitSummary(p)}>
                         {t('Visit summary')}
                       </Button>
                       <Button size="sm" variant="outline-secondary" onClick={onOpenChat}>
@@ -667,8 +635,8 @@ const TelehealthWorkspace = ({
                         )}
                       </div>
                       <div className="d-flex gap-2 align-items-center">
-                        {item.status && <Badge bg="secondary" className="text-uppercase">{item.status}</Badge>}
-                        {item.needsProvider && <Badge bg="dark" className="text-uppercase">{t('Needs provider')}</Badge>}
+                        {item.status && <Badge bg="light" text="dark" className="text-uppercase">{item.status}</Badge>}
+                        {item.needsProvider && <Badge bg="warning" className="text-uppercase">{t('Needs provider')}</Badge>}
                         <Badge bg={item.severity === 'high' ? 'danger' : 'warning'} className="text-uppercase">{t(item.severity)}</Badge>
                       </div>
                     </ListGroup.Item>

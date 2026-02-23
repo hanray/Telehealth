@@ -40,8 +40,16 @@ export const PRODUCT_CATALOG = [
   },
 ];
 
-const ProductPicker = ({ onSelectProduct, isAdmin, selectedProduct }) => {
-  const visibleProducts = PRODUCT_CATALOG.filter((p) => p.key !== 'admin' || isAdmin);
+const ProductPicker = ({ onSelectProduct, isAdmin, selectedProduct, allowedWorkspaces = null }) => {
+  const allowedSet = Array.isArray(allowedWorkspaces) && allowedWorkspaces.length
+    ? new Set(allowedWorkspaces)
+    : null;
+
+  const visibleProducts = PRODUCT_CATALOG.filter((p) => {
+    if (p.key === 'admin') return false;
+    if (allowedSet) return allowedSet.has(p.key);
+    return true;
+  }).filter((p) => p.key !== 'admin' || isAdmin);
 
   return (
     <Card className="card-plain product-picker">
