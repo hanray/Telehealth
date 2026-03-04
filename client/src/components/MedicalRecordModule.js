@@ -22,6 +22,7 @@ const MedicalRecordModule = ({
   patients = [],
   initialPatientId = null,
   readOnly = false,
+  showCareTeamModeLabel = true,
   onUpdatePatient,
   pharmacies = [],
   t = (str) => str,
@@ -412,7 +413,7 @@ const MedicalRecordModule = ({
                 <div className="fw-semibold mb-2">
                   {selected.name} ({selected.id})
                 </div>
-                {!readOnly && (
+                {!readOnly && showCareTeamModeLabel && (
                   <div className="text-muted mb-3">
                     {t('Viewing as')}{' '}
                     {readOnly ? t('patient (view only)') : t('care team (editable)')}

@@ -6,7 +6,15 @@
       "role": "admin",
       "password_hash": "$2a$10$oTwl23RTFdqV.gtPLDMau.73OGKUETJDJdvcngLNk6GuTMf3O4/3e",
       "org_id": null,
-      "patientId": null
+      "patientId": null,
+      "countryOfOrigin": {
+        "countryCode": "US",
+        "countryName": null,
+        "countryOtherText": null,
+        "countrySource": "onboarding",
+        "countryUpdatedAt": "2026-02-22T23:12:30.434Z"
+      },
+      "country": "US"
     },
     {
       "id": "usr_mk037j2z_bcp0",
@@ -28,6 +36,96 @@
       "org_id": null,
       "patientId": "patient-002",
       "country": "CA"
+    },
+    {
+      "id": "usr_mlyes32k_8ldm",
+      "email": "admin_patient@gmail.com",
+      "role": "patient",
+      "name": "Demo Patient",
+      "product": "telehealth",
+      "password_hash": "$2a$10$7DeDH/BnbEVTithbJxpaAeR00iSaD.CTNpPec56y5w1w292sNYmJS",
+      "org_id": null,
+      "patientId": "patient-seed-001",
+      "country": "US",
+      "countryOfOrigin": {
+        "countryCode": "US",
+        "countryName": null,
+        "countryOtherText": null,
+        "countrySource": "seed",
+        "countryUpdatedAt": "2026-02-22T23:58:34.060Z"
+      }
+    },
+    {
+      "id": "usr_mlyes349_ov9w",
+      "email": "admin_doctor@gmail.com",
+      "role": "doctor",
+      "name": "Demo Doctor",
+      "product": "telehealth",
+      "password_hash": "$2a$10$HVC.Qxahos7PgE5HsWjLFu.k4bAkL.byIs1jqAhDqRvsml8rTZxDq",
+      "org_id": null,
+      "patientId": null,
+      "country": "PH",
+      "countryOfOrigin": {
+        "countryCode": "PH",
+        "countryName": null,
+        "countryOtherText": null,
+        "countrySource": "profile",
+        "countryUpdatedAt": "2026-02-23T05:00:24.700Z"
+      }
+    },
+    {
+      "id": "usr_mlyes35w_e411",
+      "email": "admin_nurse@gmail.com",
+      "role": "nurse",
+      "name": "Demo Nurse",
+      "product": "telehealth",
+      "password_hash": "$2a$10$fXKZEq7oPP/qhgBNdB8DmuzoSAW6yZ8syLdP9XXi45Pxi00rBSJRy",
+      "org_id": null,
+      "patientId": null,
+      "country": "US",
+      "countryOfOrigin": {
+        "countryCode": "US",
+        "countryName": null,
+        "countryOtherText": null,
+        "countrySource": "seed",
+        "countryUpdatedAt": "2026-02-22T23:58:34.060Z"
+      }
+    },
+    {
+      "id": "usr_mlyes37m_3efs",
+      "email": "admin_psw@gmail.com",
+      "role": "psw",
+      "name": "Demo PSW",
+      "product": "homecare",
+      "password_hash": "$2a$10$aPUhMjTtEOlb/j0z.WIxu.UHNJlFJw3zqhVA19NkXkLKOfYouXZTi",
+      "org_id": null,
+      "patientId": null,
+      "country": "OTHER",
+      "countryOfOrigin": {
+        "countryCode": "OTHER",
+        "countryName": null,
+        "countryOtherText": "Norway",
+        "countrySource": "profile",
+        "countryUpdatedAt": "2026-02-23T01:02:44.272Z"
+      }
+    },
+    {
+      "id": "usr_mlyes399_95bz",
+      "email": "admin_pharmacy@gmail.com",
+      "role": "pharmacy",
+      "name": "Demo Pharmacy",
+      "product": "telehealth",
+      "password_hash": "$2a$10$W3CnaZHnGZACw/QqZxVYW.UqT/HdFor00OEHjNBY9EYoxThtvV1F6",
+      "org_id": null,
+      "patientId": null,
+      "country": "US",
+      "countryOfOrigin": {
+        "countryCode": "US",
+        "countryName": null,
+        "countryOtherText": null,
+        "countrySource": "seed",
+        "countryUpdatedAt": "2026-02-22T23:58:34.060Z"
+      }
     }
   ]
 }

@@ -137,6 +137,25 @@ body {
   font-weight: 500;
 }
 
+.workspace-sidebar-language {
+  margin-top: 4px;
+}
+
+.workspace-sidebar-language-after-logout {
+  margin-top: 100px;
+}
+
+.workspace-sidebar-language .form-select {
+  background: #ffffff;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+.workspace-sidebar-language .form-select:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
 .workspace-sidebar .btn-outline-secondary {
   background: #000000;
   border-color: #000000;
@@ -179,16 +198,21 @@ body {
   color: #dc3545;
 }
 
-.workspace-sidebar-logo-wrap {
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
-  margin-top: 14px;
+.workspace-footer-logo-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 18px;
 }
 
-.workspace-sidebar-logo {
+.workspace-footer-logo {
+  max-width: min(560px, 90%);
   width: 100%;
   height: auto;
-  display: block;
   object-fit: contain;
+  display: block;
 }
 
 .workspace-main {
@@ -453,6 +477,27 @@ body {
 .workspace-side-rail .card-title {
   font-size: 1rem;
   margin-bottom: 10px;
+}
+
+.workspace-primary-actions {
+  width: 100%;
+}
+
+.workspace-primary-actions > .d-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.workspace-primary-actions > .d-flex {
+  width: 100%;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.workspace-primary-actions .btn {
+  min-height: 42px;
 }
 
 .workspace-action-menu {

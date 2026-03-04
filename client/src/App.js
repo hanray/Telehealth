@@ -386,11 +386,28 @@ const TRANSLATIONS = {
   },
 };
 
+const makeLocaleFallbackTranslator = (shortCode) => {
+  const suffix = ` [${String(shortCode || '').toUpperCase()}]`;
+  return (text) => {
+    if (typeof text !== 'string' || !text.length) return text;
+    return `${text}${suffix}`;
+  };
+};
+
 const makeTranslator = (language) => {
   const normalized = normalizeLanguage(language);
   const short = (normalized || '').split('-')[0];
   const table = TRANSLATIONS[normalized] || TRANSLATIONS[short] || {};
-  return (text) => table[text] || text;
+  const hasExplicitTable = !!(TRANSLATIONS[normalized] || TRANSLATIONS[short]);
+  const fallbackTranslator = !hasExplicitTable && short && short !== 'en'
+    ? makeLocaleFallbackTranslator(short)
+    : null;
+
+  return (text) => {
+    if (table[text]) return table[text];
+    if (fallbackTranslator) return fallbackTranslator(text);
+    return text;
+  };
 };
 
 const normalizeCountryCode = (value) => {
@@ -707,6 +724,32 @@ const App = () => {
   const [apptModalPrefill, setApptModalPrefill] = useState(null);
   const [chatContext, setChatContext] = useState({ type: null, id: null, threadKey: null });
 
+  const closeExclusiveModal = () => {
+    setShowChat(false);
+    setChatRecipients(null);
+    setChatContext({ type: null, id: null, threadKey: null });
+    setRecordModal(false);
+    setChartModal(false);
+    setShowAnalytics(false);
+    setLabModal(null);
+    setShowAssignments(false);
+    setShowPatients(false);
+    setShowSettings(false);
+    setShowSubscriptionSettings(false);
+    setShowApptModal(false);
+    setApptModalPrefill(null);
+    setShowInsuranceModal(false);
+    setShowRefillModal(false);
+    setShowReceipt(false);
+    setShowTelehealthSummary(false);
+    setProGate({ show: false, featureKey: null });
+  };
+
+  const openExclusiveModal = (openFn) => {
+    closeExclusiveModal();
+    openFn?.();
+  };
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -815,7 +858,7 @@ const App = () => {
     }
 
     pendingProActionRef.current = action || null;
-    setProGate({ show: true, featureKey });
+    openExclusiveModal(() => setProGate({ show: true, featureKey }));
     return false;
   };
 
@@ -2121,7 +2164,7 @@ const App = () => {
   const handleCreateFollowUp = () => {
     const { patientId, patientName } = getTelehealthPatient();
     setApptModalPrefill({ patientId, patientName, appointmentType: 'Follow-up' });
-    setShowApptModal(true);
+    openExclusiveModal(() => setShowApptModal(true));
   };
 
   const getDefaultAssignee = (role = 'doctor') => {
@@ -2186,7 +2229,7 @@ const App = () => {
       ]);
     }
 
-    setLabModal(newLab);
+    openExclusiveModal(() => setLabModal(newLab));
   };
 
   const handleSendIntake = async (payload = {}) => {
@@ -2249,9 +2292,11 @@ const App = () => {
       },
     ]);
 
-    setChatRecipients([{ id: patientId, name: patientName, role: 'patient' }]);
-    setChatContext({ type: 'intake', id: patientId, threadKey: `intake:${patientId}` });
-    setShowChat(true);
+    openExclusiveModal(() => {
+      setChatRecipients([{ id: patientId, name: patientName, role: 'patient' }]);
+      setChatContext({ type: 'intake', id: patientId, threadKey: `intake:${patientId}` });
+      setShowChat(true);
+    });
   };
 
   const handleMarkTriageComplete = (payload = {}) => {
@@ -2330,13 +2375,13 @@ const App = () => {
 
       const handleManagePatients = () => {
         setQuickActionMessage('');
-        setShowAssignments(true);
+        openExclusiveModal(() => setShowAssignments(true));
       };
 
       const handleReviewLabs = () => {
         if (pendingLabs.length) {
           setQuickActionMessage('');
-          setLabModal(pendingLabs[0]);
+          openExclusiveModal(() => setLabModal(pendingLabs[0]));
           return;
         }
         setQuickActionVariant('secondary');
@@ -2344,14 +2389,16 @@ const App = () => {
       };
 
       const handleScheduleAppt = () => {
-    setQuickActionMessage('');
-    setShowApptModal(true);
+        setQuickActionMessage('');
+        openExclusiveModal(() => setShowApptModal(true));
       };
 
       const handlePatientMessage = () => {
-    setQuickActionMessage('');
-    setChatRecipients((clinicData?.patients || []).map((p) => ({ ...p, role: 'patient' })));
-    setShowChat(true);
+        setQuickActionMessage('');
+        openExclusiveModal(() => {
+          setChatRecipients((clinicData?.patients || []).map((p) => ({ ...p, role: 'patient' })));
+          setShowChat(true);
+        });
       };
 
       return (
@@ -2370,29 +2417,31 @@ const App = () => {
     if (role === 'patient') {
       const openChat = () => {
         setQuickActionMessage('');
-        setChatRecipients(clinicData.providers);
-        setShowChat(true);
+        openExclusiveModal(() => {
+          setChatRecipients(clinicData.providers);
+          setShowChat(true);
+        });
       };
 
       const handleRefill = () => {
         setQuickActionMessage('');
         setRecordPatient(patientRecord);
-        setShowRefillModal(true);
+        openExclusiveModal(() => setShowRefillModal(true));
       };
 
       const handleInsurance = () => {
         setRecordPatient(patientRecord);
         setQuickActionVariant('info');
         setQuickActionMessage('');
-        setShowInsuranceModal(true);
+        openExclusiveModal(() => setShowInsuranceModal(true));
       };
 
       return (
         <div className="d-grid gap-2">
-          <Button variant="success" onClick={() => { setQuickActionMessage(''); setShowApptModal(true); }}>Book Appointment</Button>
+          <Button variant="success" onClick={() => { setQuickActionMessage(''); openExclusiveModal(() => setShowApptModal(true)); }}>Book Appointment</Button>
           <Button variant="outline-primary" onClick={openChat}>Message Provider</Button>
           <Button variant="outline-success" onClick={handleRefill}>Request Prescription Refill</Button>
-          <Button variant="outline-secondary" onClick={() => { setQuickActionMessage(''); setRecordModal(true); }}>View Medical Records</Button>
+          <Button variant="outline-secondary" onClick={() => { setQuickActionMessage(''); openExclusiveModal(() => setRecordModal(true)); }}>View Medical Records</Button>
           <Button variant="outline-dark" onClick={handleInsurance}>Update Insurance</Button>
         </div>
       );
@@ -2400,8 +2449,8 @@ const App = () => {
 
     return (
       <div className="d-grid gap-2">
-        <Button variant="outline-primary" onClick={() => setShowChat(true)}>Open chat</Button>
-        <Button variant="outline-secondary" onClick={() => setRecordModal(true)} disabled={!patientRecord}>
+        <Button variant="outline-primary" onClick={() => openExclusiveModal(() => setShowChat(true))}>Open chat</Button>
+        <Button variant="outline-secondary" onClick={() => openExclusiveModal(() => setRecordModal(true))} disabled={!patientRecord}>
           Edit medical record
         </Button>
         <Button variant="outline-success" onClick={addDemoAppointment}>Add demo appointment</Button>
@@ -2424,9 +2473,9 @@ const App = () => {
             notifications={notifications}
             currentUser={user}
             onUpdatePreferredPharmacy={handleUpdatePreferredPharmacy}
-            onOpenRecords={() => setRecordModal(true)}
-            onOpenLab={(lab) => setLabModal(lab)}
-            onOpenChat={() => setShowChat(true)}
+            onOpenRecords={() => openExclusiveModal(() => setRecordModal(true))}
+            onOpenLab={(lab) => openExclusiveModal(() => setLabModal(lab))}
+            onOpenChat={() => openExclusiveModal(() => setShowChat(true))}
             t={t}
           />
         );
@@ -2444,14 +2493,14 @@ const App = () => {
             hideDetailsButton={desiredProduct === 'telemedicine'}
             onOpenChart={(p) => {
               setChartPatient(p);
-              setChartModal(true);
+              openExclusiveModal(() => setChartModal(true));
             }}
             onOpenRecords={(p) => {
               setRecordPatient(p);
-              setRecordModal(true);
+              openExclusiveModal(() => setRecordModal(true));
             }}
-            onOpenAnalytics={() => requireAccess('analytics', () => setShowAnalytics(true))}
-            onOpenPatients={() => setShowPatients(true)}
+            onOpenAnalytics={() => requireAccess('analytics', () => openExclusiveModal(() => setShowAnalytics(true)))}
+            onOpenPatients={() => openExclusiveModal(() => setShowPatients(true))}
             onAddPrescription={addPrescription}
             drugList={clinicData.drugList || []}
             onRespondToAssignmentRequest={(args) => requireAccess('provider_assignment', () => handleRespondToAssignmentRequest(args))}
@@ -2475,14 +2524,14 @@ const App = () => {
             hideDetailsButton={true}
             onOpenChart={(p) => {
               setChartPatient(p);
-              setChartModal(true);
+              openExclusiveModal(() => setChartModal(true));
             }}
             onOpenRecords={(p) => {
               setRecordPatient(p);
-              setRecordModal(true);
+              openExclusiveModal(() => setRecordModal(true));
             }}
-            onOpenAnalytics={() => requireAccess('analytics', () => setShowAnalytics(true))}
-            onOpenPatients={() => setShowPatients(true)}
+            onOpenAnalytics={() => requireAccess('analytics', () => openExclusiveModal(() => setShowAnalytics(true)))}
+            onOpenPatients={() => openExclusiveModal(() => setShowPatients(true))}
             onAddPrescription={addPrescription}
             drugList={clinicData.drugList || []}
             onRespondToAssignmentRequest={(args) => requireAccess('provider_assignment', () => handleRespondToAssignmentRequest(args))}
@@ -2498,11 +2547,11 @@ const App = () => {
             prescriptions={prescriptions}
             onOpenCarePlan={(p) => {
               setTelehealthSummaryPatient(p);
-              setShowTelehealthSummary(true);
+              openExclusiveModal(() => setShowTelehealthSummary(true));
             }}
-            onOpenChat={() => setShowChat(true)}
-            onOpenPatients={() => setShowPatients(true)}
-            onOpenAssignments={() => setShowAssignments(true)}
+            onOpenChat={() => openExclusiveModal(() => setShowChat(true))}
+            onOpenPatients={() => openExclusiveModal(() => setShowPatients(true))}
+            onOpenAssignments={() => openExclusiveModal(() => setShowAssignments(true))}
             onUpdateMedStatus={({ prescriptionId, status }) => updateMedStatus({ prescriptionId, status })}
             t={t}
           />
@@ -2513,7 +2562,7 @@ const App = () => {
             currentUser={user}
             patients={clinicData.patients}
             homecareTasks={clinicData.homecareTasks || []}
-            onOpenPatients={() => setShowPatients(true)}
+            onOpenPatients={() => openExclusiveModal(() => setShowPatients(true))}
             onStartTask={({ taskId }) => updateHomecareTask({ taskId, updater: (t) => ({ ...t, status: 'in_progress' }) })}
             onCompleteTask={({ taskId }) => updateHomecareTask({ taskId, updater: (t) => ({ ...t, status: 'completed' }) })}
             t={t}
@@ -2533,14 +2582,14 @@ const App = () => {
             hideDetailsButton={false}
             onOpenChart={(p) => {
               setChartPatient(p);
-              setChartModal(true);
+              openExclusiveModal(() => setChartModal(true));
             }}
             onOpenRecords={(p) => {
               setRecordPatient(p);
-              setRecordModal(true);
+              openExclusiveModal(() => setRecordModal(true));
             }}
-            onOpenAnalytics={() => requireAccess('analytics', () => setShowAnalytics(true))}
-            onOpenPatients={() => requireAccess('clinic_ops', () => setShowPatients(true))}
+            onOpenAnalytics={() => requireAccess('analytics', () => openExclusiveModal(() => setShowAnalytics(true)))}
+            onOpenPatients={() => requireAccess('clinic_ops', () => openExclusiveModal(() => setShowPatients(true)))}
             onAddPrescription={addPrescription}
             drugList={clinicData.drugList || []}
             onRespondToAssignmentRequest={(args) => requireAccess('provider_assignment', () => handleRespondToAssignmentRequest(args))}
@@ -2564,11 +2613,11 @@ const App = () => {
             onCloseVisit={handleCloseTelehealthVisit}
             onOpenVisitSummary={(p) => {
               setTelehealthSummaryPatient(p);
-              setShowTelehealthSummary(true);
+              openExclusiveModal(() => setShowTelehealthSummary(true));
             }}
-            onOpenLab={(lab) => setLabModal(lab)}
-            onOpenChat={() => setShowChat(true)}
-            onOpenAssignments={() => setShowAssignments(true)}
+            onOpenLab={(lab) => openExclusiveModal(() => setLabModal(lab))}
+            onOpenChat={() => openExclusiveModal(() => setShowChat(true))}
+            onOpenAssignments={() => openExclusiveModal(() => setShowAssignments(true))}
             onStartVisit={handleStartTelehealthVisit}
             onAssignProvider={(payload) => requireAccess('provider_assignment', () => handleAssignProvider(payload))}
             onEscalate={() => requireAccess('escalations', () => handleEscalate())}
@@ -2601,10 +2650,10 @@ const App = () => {
               <Card.Title>{t('Admin configuration')}</Card.Title>
               <Card.Text className="text-muted">{t('This feature requires a paid subscription tier.')}</Card.Text>
               <div className="d-flex gap-2">
-                <Button variant="primary" onClick={() => { setProGate({ show: true, featureKey: 'admin_config' }); }}>
+                <Button variant="primary" onClick={() => { openExclusiveModal(() => setProGate({ show: true, featureKey: 'admin_config' })); }}>
                   {t('Unlock paid features')}
                 </Button>
-                <Button variant="outline-secondary" onClick={() => setShowSubscriptionSettings(true)}>
+                <Button variant="outline-secondary" onClick={() => openExclusiveModal(() => setShowSubscriptionSettings(true))}>
                   {t('Subscription Settings')}
                 </Button>
               </div>
@@ -2664,6 +2713,62 @@ const App = () => {
 
   const totalPatientsCount = (clinicData.patients || []).length;
   const pendingReviewsCount = pendingLabs.length;
+  const isMyHealthWorkspace = normalizeWorkspace(desiredProduct) === 'myhealth';
+
+  const myHealthMetrics = useMemo(() => {
+    const targetPatientId = patientRecord?.id;
+    const upcomingAppointments = (clinicData.appointments || []).filter((appt) => {
+      if (!targetPatientId || appt?.patientId !== targetPatientId) return false;
+      return String(appt?.status || '').toLowerCase() !== 'completed';
+    }).length;
+
+    const activePrescriptions = (prescriptions || []).filter((rx) => {
+      if (!targetPatientId || rx?.patientId !== targetPatientId) return false;
+      return !['completed', 'stopped'].includes(String(rx?.status || '').toLowerCase());
+    }).length;
+
+    const pendingTestResults = (clinicData.labs || []).filter((lab) => {
+      if (!targetPatientId || lab?.patientId !== targetPatientId) return false;
+      const status = String(lab?.status || '').toLowerCase();
+      return status === 'pending' || status === 'pending_review';
+    }).length;
+
+    const unreadMessages = Array.isArray(patientRecord?.messages)
+      ? patientRecord.messages.filter((msg) => msg?.unread).length
+      : 0;
+
+    return [
+      { label: 'Upcoming Appointments', value: upcomingAppointments },
+      { label: 'Active Prescriptions', value: activePrescriptions },
+      { label: 'Pending Test Results', value: pendingTestResults },
+      { label: 'Unread Messages', value: unreadMessages },
+    ];
+  }, [clinicData.appointments, clinicData.labs, prescriptions, patientRecord]);
+
+  const userRole = String(user?.role || '').trim().toLowerCase();
+  const isAdminUser = userRole === 'admin';
+  const isDoctorOrNurse = userRole === 'doctor' || userRole === 'nurse';
+  const workspaceKey = normalizeWorkspace(desiredProduct);
+  const showAdminDashboard = isAdminUser;
+  const showPatientsMenu = isAdminUser || isDoctorOrNurse;
+  const showAssignmentsMenu = isAdminUser || isDoctorOrNurse;
+  const showAnalyticsMenu = isAdminUser && normalizeProductKey(desiredProduct) === 'telehealth';
+  const primaryMenuKey = showAdminDashboard ? 'dashboard' : (showPatientsMenu ? 'patients' : 'settings');
+  const topSummaryMetrics = isMyHealthWorkspace
+    ? myHealthMetrics
+    : [
+      { label: "Today's Appointments", value: todayAppointmentsCount },
+      { label: 'Total Patients', value: totalPatientsCount },
+      { label: 'Pending Reviews', value: pendingReviewsCount },
+    ];
+  const workspaceBrandLabel = workspaceKey === 'telehealth'
+    ? 'Telemedicine'
+    : workspaceKey === 'homecare'
+      ? 'HomeCare'
+      : 'My HomeCare Online';
+  const workspaceFooterLogoSrc = workspaceKey === 'myhealth' ? homecareLogo : '/WHSF.jpg';
+  const workspaceFooterLogoAlt = workspaceKey === 'myhealth' ? 'My HomeCare Online' : 'WHS Foundation';
+  const showCareTeamModeLabel = workspaceKey === 'homecare' && !['doctor', 'nurse'].includes(userRole);
 
   return (
     <div className="app-shell">
@@ -2672,7 +2777,7 @@ const App = () => {
           user={user}
           onLogout={handleLogout}
           isAdmin={user?.role === 'admin'}
-          onOpenSettings={() => setShowSettings(true)}
+          onOpenSettings={() => openExclusiveModal(() => setShowSettings(true))}
           onLogin={() => { setShowSignup(false); setShowLogin(true); window.history.replaceState({}, '', '/login'); }}
           onOpenPricing={openPricing}
           showPricingAction
@@ -2689,22 +2794,40 @@ const App = () => {
           <div className="workspace-layout d-flex h-full">
             <aside className="workspace-sidebar shrink-0 border-end d-flex flex-column">
               <div className="workspace-sidebar-header">
-                <div className="workspace-sidebar-brand">My HomeCare Online</div>
+                <div className="workspace-sidebar-brand">{workspaceBrandLabel}</div>
                 <div className="workspace-sidebar-meta text-muted text-uppercase">{user?.role || 'user'}</div>
                 <div className="workspace-sidebar-email text-muted">{user?.email || ''}</div>
               </div>
               <div className="workspace-sidebar-menu d-grid gap-2">
-                <Button variant="primary" size="sm" className="text-start">Dashboard</Button>
-                <Button variant="outline-secondary" size="sm" className="text-start" onClick={() => setShowPatients(true)}>Patients</Button>
-                <Button variant="outline-secondary" size="sm" className="text-start" onClick={() => setShowAssignments(true)}>Assignments</Button>
-                {normalizeProductKey(desiredProduct) === 'telehealth' && (
-                  <Button variant="outline-secondary" size="sm" className="text-start" onClick={() => requireAccess('analytics', () => setShowAnalytics(true))}>Analytics</Button>
+                {showAdminDashboard && (
+                  <Button variant={primaryMenuKey === 'dashboard' ? 'primary' : 'outline-secondary'} size="sm" className="text-start">Dashboard</Button>
                 )}
-                <Button variant="outline-secondary" size="sm" className="text-start" onClick={() => setShowSettings(true)}>Settings</Button>
+                {showPatientsMenu && (
+                  <Button variant={primaryMenuKey === 'patients' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => openExclusiveModal(() => setShowPatients(true))}>Patients</Button>
+                )}
+                {showAssignmentsMenu && (
+                  <Button variant={primaryMenuKey === 'assignments' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => openExclusiveModal(() => setShowAssignments(true))}>Assignments</Button>
+                )}
+                {showAnalyticsMenu && (
+                  <Button variant={primaryMenuKey === 'analytics' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => requireAccess('analytics', () => openExclusiveModal(() => setShowAnalytics(true)))}>Analytics</Button>
+                )}
+                <Button variant="outline-secondary" size="sm" className="text-start" onClick={openPricing}>Pricing</Button>
+                <Button variant={primaryMenuKey === 'settings' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => openExclusiveModal(() => setShowSettings(true))}>Settings</Button>
                 <Button variant="outline-danger" size="sm" className="text-start" onClick={handleLogout}>Logout</Button>
-              </div>
-              <div className="workspace-sidebar-logo-wrap mt-auto pt-3">
-                <img src={homecareLogo} alt="My HomeCare Online" className="workspace-sidebar-logo" />
+                <div className="workspace-sidebar-language workspace-sidebar-language-after-logout">
+                  <Form.Select
+                    size="sm"
+                    aria-label="Language selector"
+                    value={selectedLanguage}
+                    onChange={(e) => setSelectedLanguage(e.target.value)}
+                  >
+                    {SUPPORTED_LANGUAGES.map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.flag ? `${lang.flag} ${lang.label}` : lang.label}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </div>
               </div>
             </aside>
 
@@ -2733,7 +2856,7 @@ const App = () => {
                           <Button
                             variant="outline-secondary"
                             size="sm"
-                            onClick={() => requireAccess('analytics', () => setShowAnalytics(true))}
+                            onClick={() => requireAccess('analytics', () => openExclusiveModal(() => setShowAnalytics(true)))}
                           >
                             {t('Analytics')}
                           </Button>
@@ -2759,18 +2882,12 @@ const App = () => {
                   <Card className="card-plain workspace-metrics">
                     <Card.Body>
                       <div className="workspace-metrics-grid">
-                        <div className="workspace-metric-item">
-                          <div className="workspace-metric-label">{t("Today's Appointments")}</div>
-                          <div className="workspace-metric-value">{todayAppointmentsCount}</div>
-                        </div>
-                        <div className="workspace-metric-item">
-                          <div className="workspace-metric-label">{t('Total Patients')}</div>
-                          <div className="workspace-metric-value">{totalPatientsCount}</div>
-                        </div>
-                        <div className="workspace-metric-item">
-                          <div className="workspace-metric-label">{t('Pending Reviews')}</div>
-                          <div className="workspace-metric-value">{pendingReviewsCount}</div>
-                        </div>
+                        {topSummaryMetrics.map((metric) => (
+                          <div key={metric.label} className="workspace-metric-item">
+                            <div className="workspace-metric-label">{t(metric.label)}</div>
+                            <div className="workspace-metric-value">{metric.value}</div>
+                          </div>
+                        ))}
                       </div>
                     </Card.Body>
                   </Card>
@@ -2779,11 +2896,9 @@ const App = () => {
                 <section className="PrimaryActionsPanel mb-4">
                   <Card className="card-plain">
                     <Card.Body>
-                      <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                        <Card.Title className="mb-0">{t("Today's Actions")}</Card.Title>
-                        <div className="workspace-primary-actions d-flex gap-2 flex-wrap">
-                          {renderQuickActions()}
-                        </div>
+                      <Card.Title className="mb-0">{t("Today's Actions")}</Card.Title>
+                      <div className="workspace-primary-actions mt-3">
+                        {renderQuickActions()}
                       </div>
                       {quickActionMessage && (
                         <Alert
@@ -2801,27 +2916,29 @@ const App = () => {
 
                 <section className="WorkspaceGrid grid-desktop-2col">
                   <div className="workspace-grid-left d-grid gap-3">
-                    <Card className="card-plain">
-                      <Card.Body>
-                        <Card.Title>{t('Visit Queue')}</Card.Title>
-                        <div className="overflow-y-auto" style={{ maxHeight: '420px' }}>
-                          <ListGroup variant="flush">
-                            {workspaceVisitQueue.map((a) => (
-                              <ListGroup.Item key={a.id} className="d-flex justify-content-between align-items-center">
-                                <div>
-                                  <div className="fw-semibold">{a.patientName || t('Patient')}</div>
-                                  <div className="text-muted" style={{ fontSize: 12 }}>
-                                    {a.type || t('Visit')} • {a.startAt ? new Date(a.startAt).toLocaleString() : t('TBD')}
+                    {!isMyHealthWorkspace && (
+                      <Card className="card-plain">
+                        <Card.Body>
+                          <Card.Title>{t('Visit Queue')}</Card.Title>
+                          <div className="overflow-y-auto" style={{ maxHeight: '420px' }}>
+                            <ListGroup variant="flush">
+                              {workspaceVisitQueue.map((a) => (
+                                <ListGroup.Item key={a.id} className="d-flex justify-content-between align-items-center">
+                                  <div>
+                                    <div className="fw-semibold">{a.patientName || t('Patient')}</div>
+                                    <div className="text-muted" style={{ fontSize: 12 }}>
+                                      {a.type || t('Visit')} • {a.startAt ? new Date(a.startAt).toLocaleString() : t('TBD')}
+                                    </div>
                                   </div>
-                                </div>
-                                <Badge bg="secondary" className="text-uppercase">{a.status || t('scheduled')}</Badge>
-                              </ListGroup.Item>
-                            ))}
-                            {!workspaceVisitQueue.length && <ListGroup.Item className="text-muted">{t('No upcoming visits.')}</ListGroup.Item>}
-                          </ListGroup>
-                        </div>
-                      </Card.Body>
-                    </Card>
+                                  <Badge bg="secondary" className="text-uppercase">{a.status || t('scheduled')}</Badge>
+                                </ListGroup.Item>
+                              ))}
+                              {!workspaceVisitQueue.length && <ListGroup.Item className="text-muted">{t('No upcoming visits.')}</ListGroup.Item>}
+                            </ListGroup>
+                          </div>
+                        </Card.Body>
+                      </Card>
+                    )}
 
                     <Card className="card-plain">
                       <Card.Body>
@@ -2897,6 +3014,12 @@ const App = () => {
                         </div>
                       </Card.Body>
                     </Card>
+                  </div>
+                </section>
+
+                <section className="WorkspaceFooterLogoRow mt-4">
+                  <div className="workspace-footer-logo-wrap">
+                    <img src={workspaceFooterLogoSrc} alt={workspaceFooterLogoAlt} className="workspace-footer-logo" />
                   </div>
                 </section>
               </div>
@@ -3268,16 +3391,16 @@ const App = () => {
       {user && (
         <PatientAssignmentModule
           show={showAssignments}
-          onHide={() => setShowAssignments(false)}
+          onHide={closeExclusiveModal}
           currentUser={{ id: user.id, role: user.role, name: user.email || 'User' }}
           onAssignmentUpdate={refreshStore}
           onViewDetails={(p) => {
             setRecordPatient(p);
-            setRecordModal(true);
+            openExclusiveModal(() => setRecordModal(true));
           }}
           onViewRecord={(p) => {
             setRecordPatient(p);
-            setRecordModal(true);
+            openExclusiveModal(() => setRecordModal(true));
           }}
           enableRecordQuickOpen
         />
@@ -3286,7 +3409,7 @@ const App = () => {
       {user && (
         <PatientsModule
           show={showPatients}
-          onHide={() => setShowPatients(false)}
+          onHide={closeExclusiveModal}
           currentUser={user}
           patients={clinicData.patients}
           providers={clinicData.providers}
@@ -3296,11 +3419,11 @@ const App = () => {
           onCreateHomecareTask={(payload) => handleCreateHomecareTask(payload)}
           onOpenChart={(p) => {
             setChartPatient(p);
-            setChartModal(true);
+            openExclusiveModal(() => setChartModal(true));
           }}
           onOpenRecords={(p) => {
             setRecordPatient(p);
-            setRecordModal(true);
+            openExclusiveModal(() => setRecordModal(true));
           }}
           t={t}
         />
@@ -3308,7 +3431,7 @@ const App = () => {
 
       <ChatModule
         show={showChat}
-        onHide={() => { setShowChat(false); setChatRecipients(null); setChatContext({ type: null, id: null, threadKey: null }); }}
+        onHide={closeExclusiveModal}
         currentUser={user}
         recipients={chatRecipients || clinicData.providers}
         contextType={chatContext.type || undefined}
@@ -3318,7 +3441,7 @@ const App = () => {
 
       <AppointmentModal
         show={showApptModal}
-        onHide={() => { setShowApptModal(false); setApptModalPrefill(null); }}
+        onHide={closeExclusiveModal}
         appointmentTypes={clinicConfig.appointmentTypes || []}
         prefill={apptModalPrefill}
         onScheduled={(appt) => {
@@ -3332,32 +3455,33 @@ const App = () => {
 
       <MedicalRecordModule
         show={recordModal}
-        onHide={() => setRecordModal(false)}
+        onHide={closeExclusiveModal}
         patients={(activePortal || user?.role) === 'patient'
           ? [patientRecord].filter(Boolean)
           : (recordPatient ? [recordPatient] : clinicData.patients)}
         initialPatientId={(recordPatient || patientRecord)?.id || null}
         onUpdatePatient={upsertPatient}
         readOnly={(activePortal || user?.role) === 'patient'}
+        showCareTeamModeLabel={showCareTeamModeLabel}
         pharmacies={pharmacies}
         t={t}
       />
 
       <PatientChart
         show={chartModal}
-        onHide={() => setChartModal(false)}
+        onHide={closeExclusiveModal}
         patient={chartPatient || null}
         onUpdatePatient={upsertPatient}
         onOpenRecords={(p) => {
           setRecordPatient(p);
-          setRecordModal(true);
+          openExclusiveModal(() => setRecordModal(true));
         }}
         t={t}
       />
 
       <AnalyticsDashboard
         show={showAnalytics}
-        onHide={() => setShowAnalytics(false)}
+        onHide={closeExclusiveModal}
         appointments={clinicData.appointments}
         labs={clinicData.labs}
         t={t}
@@ -3365,7 +3489,7 @@ const App = () => {
 
       <InsuranceModal
         show={showInsuranceModal}
-        onHide={() => setShowInsuranceModal(false)}
+        onHide={closeExclusiveModal}
         patient={recordPatient || patientRecord}
         readOnly={false}
         onSave={(patientId, insurance) => {
@@ -3379,7 +3503,7 @@ const App = () => {
             },
           };
           upsertPatient(updated);
-          setShowInsuranceModal(false);
+          closeExclusiveModal();
           setQuickActionVariant('success');
           setQuickActionMessage('Insurance updated and saved to medical record.');
         }}
@@ -3387,7 +3511,7 @@ const App = () => {
 
       <RefillModal
         show={showRefillModal}
-        onHide={() => setShowRefillModal(false)}
+        onHide={closeExclusiveModal}
         medications={(recordPatient || patientRecord)?.medicalRecord?.medications || []}
         prescriptions={prescriptions.filter((p) => p.patientId === (recordPatient || patientRecord)?.id)}
         patientId={(recordPatient || patientRecord)?.id}
@@ -3403,14 +3527,13 @@ const App = () => {
             payment: txn ? { method: txn.method || payload?.payment?.method || 'Card', amount: txn.amount ?? payload?.payment?.amount ?? 0, status: txn.paymentStatus || 'approved', transactionId: txn.transactionId || txn.id } : payload?.payment,
             createdAt: new Date().toISOString(),
           });
-          setShowRefillModal(false);
-          setShowReceipt(true);
+          openExclusiveModal(() => setShowReceipt(true));
           setQuickActionVariant('success');
           setQuickActionMessage(`Refill request submitted for ${med?.name || 'prescription'}.`);
         }}
       />
 
-      <Modal show={showReceipt} onHide={() => setShowReceipt(false)} centered size="lg">
+      <Modal show={showReceipt} onHide={closeExclusiveModal} centered size="lg">
         <Modal.Header closeButton>
           <Modal.Title>Refill Receipt</Modal.Title>
         </Modal.Header>
@@ -3439,15 +3562,15 @@ const App = () => {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="outline-secondary" onClick={() => window.print()}>Print</Button>
-          <Button variant="primary" onClick={() => setShowReceipt(false)}>Return to Dashboard</Button>
+          <Button variant="primary" onClick={closeExclusiveModal}>Return to Dashboard</Button>
         </Modal.Footer>
       </Modal>
 
-      <LabResultModal show={!!labModal} onHide={() => setLabModal(null)} lab={labModal} />
+      <LabResultModal show={!!labModal} onHide={closeExclusiveModal} lab={labModal} />
 
       <TelehealthVisitSummary
         show={showTelehealthSummary}
-        onHide={() => setShowTelehealthSummary(false)}
+        onHide={closeExclusiveModal}
         patient={telehealthSummaryPatient}
         appointments={clinicData.appointments}
         providers={clinicData.providers}
@@ -3461,7 +3584,7 @@ const App = () => {
       />
 
       {user && (
-        <Modal show={showSettings} onHide={() => setShowSettings(false)} centered>
+        <Modal show={showSettings} onHide={closeExclusiveModal} centered>
           <Modal.Header closeButton>
             <Modal.Title>{user?.role === 'admin' ? 'Admin Tools' : t('Settings')}</Modal.Title>
           </Modal.Header>
@@ -3516,7 +3639,7 @@ const App = () => {
                       countryOtherText: profileCountryOtherText,
                       countrySource: 'profile',
                     });
-                    setShowSettings(false);
+                    closeExclusiveModal();
                   } catch (err) {
                     setAuthError(err.message || 'Failed to save profile');
                   } finally {
@@ -3537,14 +3660,14 @@ const App = () => {
 
             <div className="d-grid gap-2">
               {user?.role === 'admin' && (
-                <Button variant="outline-primary" onClick={() => { refreshStore(); setShowSettings(false); }}>
+                <Button variant="outline-primary" onClick={() => { refreshStore(); closeExclusiveModal(); }}>
                   Refresh local data
                 </Button>
               )}
-              <Button variant="outline-secondary" onClick={() => { setShowSubscriptionSettings(true); setShowSettings(false); }}>
+              <Button variant="outline-secondary" onClick={() => { openExclusiveModal(() => setShowSubscriptionSettings(true)); }}>
                 Subscription Settings
               </Button>
-              <Button variant="link" className="text-start ps-0" onClick={() => { setActivePortal(null); setShowSettings(false); }}>
+              <Button variant="link" className="text-start ps-0" onClick={() => { setActivePortal(null); closeExclusiveModal(); }}>
                 Change portal
               </Button>
             </div>
@@ -3554,7 +3677,7 @@ const App = () => {
 
       <SubscriptionSettingsModal
         show={showSubscriptionSettings}
-        onHide={() => setShowSubscriptionSettings(false)}
+        onHide={closeExclusiveModal}
         subscription={subscription}
         isAdmin={user?.role === 'admin'}
         billingStatus={billingStatus}
@@ -3623,13 +3746,13 @@ const App = () => {
 
       <ProFeatureGateModal
         show={proGate.show}
-        onHide={() => setProGate({ show: false, featureKey: null })}
+        onHide={closeExclusiveModal}
         subscription={subscription}
         featureKey={proGate.featureKey}
         onStartTrial={() => {
           const next = startProTrial();
           setSubscription(next);
-          setProGate({ show: false, featureKey: null });
+          closeExclusiveModal();
           const action = pendingProActionRef.current;
           pendingProActionRef.current = null;
           action?.();
@@ -3637,7 +3760,7 @@ const App = () => {
         onUpgrade={() => {
           const next = upgradeToProDemo();
           setSubscription(next);
-          setProGate({ show: false, featureKey: null });
+          closeExclusiveModal();
           const action = pendingProActionRef.current;
           pendingProActionRef.current = null;
           action?.();

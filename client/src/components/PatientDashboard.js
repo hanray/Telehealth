@@ -118,21 +118,10 @@ const PatientDashboard = ({
   const messages = Array.isArray(patient?.messages) ? patient.messages : [];
 
   const sortedAppts = [...mineAppts].sort((a, b) => new Date(a.startAt || 0) - new Date(b.startAt || 0));
-  const upcoming = sortedAppts.filter((a) => a.status !== 'completed');
-  const activeMeds = medsForView.filter((m) => !['completed', 'stopped'].includes((m.status || '').toLowerCase()));
-  const pendingTests = mineLabs.filter((l) => ['pending_review', 'pending'].includes((l.status || '').toLowerCase()));
-  const unreadMessages = messages.filter((m) => m.unread).length;
 
   const labsSorted = [...mineLabs].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   const recentLabs = labsSorted.slice(0, 3);
   const recentMessages = [...messages].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 4);
-
-  const metrics = [
-    { label: 'Upcoming Appointments', value: upcoming.length },
-    { label: 'Active Prescriptions', value: activeMeds.length },
-    { label: 'Pending Test Results', value: pendingTests.length },
-    { label: 'Unread Messages', value: unreadMessages },
-  ];
 
   const storageKey = patientId ? `patient-dashboard-order-${patientId}` : null;
 
@@ -398,23 +387,6 @@ const PatientDashboard = ({
           <Card.Title className="mb-0">{t('Welcome')}, {patient.name}</Card.Title>
           <Card.Subtitle className="text-muted">{t('Patient ID')}: {patient.id}</Card.Subtitle>
           <Card.Text className="mt-2 mb-0">{t('Stay on top of your care plan and message your care team.')}</Card.Text>
-        </Card.Body>
-      </Card>
-
-      <Card className="card-plain">
-        <Card.Body>
-          <Row>
-            {metrics.map((m) => (
-              <Col md={6} lg={3} key={m.label} className="mb-3">
-                <Card className="text-center h-100">
-                  <Card.Body>
-                    <div className="fw-semibold">{t(m.label)}</div>
-                    <div style={{ fontSize: 28 }}>{m.value}</div>
-                  </Card.Body>
-                </Card>
-              </Col>
-            ))}
-          </Row>
         </Card.Body>
       </Card>
 
