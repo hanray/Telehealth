@@ -283,7 +283,7 @@ const PatientDashboard = ({
                       <div className="fw-semibold">{lab.test}</div>
                       <div className="text-muted" style={{ fontSize: 12 }}>{lab.date}</div>
                     </div>
-                    <div className="d-flex align-items-center gap-2">
+                    <div className="d-flex align-items-center gap-2 ms-auto">
                       <Badge bg={badgeForStatus(lab.status)} className="text-uppercase">{lab.status}</Badge>
                       <Button size="sm" variant="outline-primary" onClick={() => onOpenLab(lab)}>{t('View')}</Button>
                     </div>
@@ -317,7 +317,9 @@ const PatientDashboard = ({
                       <div>{msg.subject}</div>
                       <div className="text-muted" style={{ fontSize: 12 }}>{msg.date}</div>
                     </div>
-                    {msg.unread && <Badge bg="primary">{t('New')}</Badge>}
+                    <div className="ms-auto d-flex justify-content-end">
+                      {msg.unread && <Badge bg="primary">{t('New')}</Badge>}
+                    </div>
                   </ListGroup.Item>
                 ))}
                 {!recentMessages.length && (
@@ -342,7 +344,7 @@ const PatientDashboard = ({
                         {m.status || t('active')}{m.updatedAt ? ` • ${new Date(m.updatedAt).toLocaleString()}` : ''}
                       </div>
                     </div>
-                    <Badge bg={badgeForStatus(m.status)} className="text-uppercase">{m.status || t('active')}</Badge>
+                    <Badge bg={badgeForStatus(m.status)} className="text-uppercase ms-auto">{m.status || t('active')}</Badge>
                   </ListGroup.Item>
                 ))}
                 {!medsForView.length && <ListGroup.Item className="text-muted">{t('No active prescriptions.')}</ListGroup.Item>}

@@ -105,8 +105,8 @@ body {
 
 .workspace-sidebar {
   width: 280px;
-  background: #111827;
-  border-right: 1px solid #1f2937;
+  background: #12343b;
+  border-right: 1px solid #1f4d57;
   padding: 18px 14px;
   color: #ffffff;
 }
@@ -157,45 +157,45 @@ body {
 }
 
 .workspace-sidebar .btn-outline-secondary {
-  background: #000000;
-  border-color: #000000;
+  background: transparent;
+  border-color: transparent;
   color: #ffffff;
 }
 
 .workspace-sidebar .btn-outline-secondary:hover,
 .workspace-sidebar .btn-outline-secondary:focus,
 .workspace-sidebar .btn-outline-secondary:active {
-  background: #0a0a0a;
-  border-color: #0a0a0a;
+  background: transparent;
+  border-color: transparent;
   color: #ffffff;
 }
 
 .workspace-sidebar .btn-primary {
-  background: #0d6efd;
-  border-color: #0d6efd;
+  background: var(--bs-green, #198754);
+  border-color: var(--bs-green, #198754);
   color: #ffffff;
 }
 
 .workspace-sidebar .btn-primary:hover,
 .workspace-sidebar .btn-primary:focus,
 .workspace-sidebar .btn-primary:active {
-  background: #0b5ed7;
-  border-color: #0b5ed7;
+  background: #157347;
+  border-color: #157347;
   color: #ffffff;
 }
 
 .workspace-sidebar .btn-outline-danger {
-  background: #ffffff;
-  border-color: #dc3545;
-  color: #dc3545;
+  background: transparent;
+  border-color: transparent;
+  color: #ffffff;
 }
 
 .workspace-sidebar .btn-outline-danger:hover,
 .workspace-sidebar .btn-outline-danger:focus,
 .workspace-sidebar .btn-outline-danger:active {
-  background: #fff5f5;
-  border-color: #dc3545;
-  color: #dc3545;
+  background: transparent;
+  border-color: transparent;
+  color: #ffffff;
 }
 
 .workspace-footer-logo-wrap {
@@ -240,6 +240,12 @@ body {
   display: grid;
   grid-template-columns: 1fr;
   gap: 20px;
+}
+
+.workspace-grid-left,
+.workspace-grid-right {
+  align-content: start;
+  grid-auto-rows: min-content;
 }
 
 @media (min-width: 1024px) {

@@ -8,6 +8,7 @@ import AnalyticsDashboard from './components/AnalyticsDashboard';
 import LabResultModal from './components/LabResultModal';
 import PatientDashboard from './components/PatientDashboard';
 import DoctorDashboard from './components/DoctorDashboard';
+import PharmacyDashboard from './components/PharmacyDashboard';
 import NurseDashboard from './components/NurseDashboard';
 import PSWDashboard from './components/PSWDashboard';
 import TelehealthWorkspace from './components/TelehealthWorkspace';
@@ -3331,6 +3332,7 @@ const App = () => {
 
   const renderQuickActions = () => {
     const role = activePortal || user?.role;
+    const isHomecareWorkspace = normalizeWorkspace(desiredProduct) === 'homecare';
 
     if (role === 'doctor') {
       const handleEmergency = () => {
@@ -3415,10 +3417,14 @@ const App = () => {
     return (
       <div className="d-grid gap-2">
         <Button variant="outline-primary" onClick={() => openExclusiveModal(() => setShowChat(true))}>Open chat</Button>
-        <Button variant="outline-secondary" onClick={() => openExclusiveModal(() => setRecordModal(true))} disabled={!patientRecord}>
-          Edit medical record
-        </Button>
-        <Button variant="outline-success" onClick={addDemoAppointment}>Add demo appointment</Button>
+        {!isHomecareWorkspace && (
+          <>
+            <Button variant="outline-secondary" onClick={() => openExclusiveModal(() => setRecordModal(true))} disabled={!patientRecord}>
+              Edit medical record
+            </Button>
+            <Button variant="outline-success" onClick={addDemoAppointment}>Add demo appointment</Button>
+          </>
+        )}
       </div>
     );
   };
@@ -3475,7 +3481,6 @@ const App = () => {
           />
         );
       case 'specialist':
-      case 'pharmacist':
         return (
           <DoctorDashboard
             patients={clinicData.patients}
@@ -3502,6 +3507,17 @@ const App = () => {
             onRespondToAssignmentRequest={(args) => requireAccess('provider_assignment', () => handleRespondToAssignmentRequest(args))}
             onAcknowledgeEscalation={(args) => requireAccess('escalations', () => handleAcknowledgeEscalation(args))}
             onResolveEscalation={(args) => requireAccess('escalations', () => handleResolveEscalation(args))}
+            t={t}
+          />
+        );
+      case 'pharmacist':
+        return (
+          <PharmacyDashboard
+            prescriptions={prescriptions}
+            patients={clinicData.patients}
+            pharmacies={pharmacies}
+            currentUser={user}
+            onUpdateMedStatus={({ prescriptionId, status }) => updateMedStatus({ prescriptionId, status })}
             t={t}
           />
         );
@@ -3734,6 +3750,13 @@ const App = () => {
   const workspaceFooterLogoSrc = workspaceKey === 'myhealth' ? homecareLogo : '/WHSF.jpg';
   const workspaceFooterLogoAlt = workspaceKey === 'myhealth' ? 'My HomeCare Online' : 'WHS Foundation';
   const showCareTeamModeLabel = workspaceKey === 'homecare' && !['doctor', 'nurse'].includes(userRole);
+  const globalHeaderTitle = workspaceKey === 'telehealth'
+    ? 'Telemedicine'
+    : workspaceKey === 'homecare'
+      ? 'HomeCare'
+      : workspaceKey === 'myhealth'
+        ? 'My HomeCare Online'
+        : 'Telehealth Console';
 
   const renderSettingsPanel = ({ inline = false } = {}) => {
     const closeSettingsPanel = () => {
@@ -3922,17 +3945,19 @@ const App = () => {
                 <div className="fw-bold fs-5">{getProductTitle(desiredProduct) || t('Workspace')}</div>
               </div>
               <div className="d-flex gap-2">
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  onClick={() => {
-                    setActivePortal(null);
-                    setShowLogin(false);
-                    window.history.replaceState({}, '', '/');
-                  }}
-                >
-                  {t('Change workspace')}
-                </Button>
+                {user?.role === 'admin' && (
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    onClick={() => {
+                      setActivePortal(null);
+                      setShowLogin(false);
+                      window.history.replaceState({}, '', '/');
+                    }}
+                  >
+                    {t('Change workspace')}
+                  </Button>
+                )}
                 {normalizeProductKey(desiredProduct) === 'telehealth' && (
                   <Button
                     variant="outline-secondary"
@@ -4119,6 +4144,9 @@ const App = () => {
           onOpenPricing={openPricing}
           showPricingAction
           showLoginAction={!user}
+          brandTitle={globalHeaderTitle}
+          brandLogoSrc="/WHSF.jpg"
+          brandLogoAlt="WHS Foundation"
           languages={SUPPORTED_LANGUAGES}
           selectedLanguage={selectedLanguage}
           onLanguageChange={setSelectedLanguage}
@@ -4136,9 +4164,7 @@ const App = () => {
                 <div className="workspace-sidebar-email text-muted">{user?.email || ''}</div>
               </div>
               <div className="workspace-sidebar-menu d-grid gap-2">
-                {showAdminDashboard && (
-                  <Button variant={primaryMenuKey === 'dashboard' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => openSidebarMainSection('dashboard')}>Dashboard</Button>
-                )}
+                <Button variant={primaryMenuKey === 'dashboard' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => openSidebarMainSection('dashboard')}>Dashboard</Button>
                 {showPatientsMenu && (
                   <Button variant={primaryMenuKey === 'patients' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => openSidebarMainSection('patients')}>Patients</Button>
                 )}
