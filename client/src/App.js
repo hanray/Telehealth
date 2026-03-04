@@ -386,6 +386,667 @@ const TRANSLATIONS = {
   },
 };
 
+const EXTENDED_TRANSLATIONS = {
+  de: {
+    'Telehealth Console': 'Telemedizin-Konsole',
+    'Login': 'Anmelden',
+    'Logout': 'Abmelden',
+    'Settings': 'Einstellungen',
+    'Create account': 'Konto erstellen',
+    'Back to products': 'Zurück zu Produkten',
+    'Email': 'E-Mail',
+    'Password': 'Passwort',
+    'Sign in': 'Einloggen',
+    'Name (optional)': 'Name (optional)',
+    'Role': 'Rolle',
+    'Country': 'Land',
+    'Need an account? Create one': 'Noch kein Konto? Jetzt erstellen',
+    'Already have an account? Sign in': 'Bereits ein Konto? Einloggen',
+    'Change workspace': 'Arbeitsbereich wechseln',
+    'Workspace': 'Arbeitsbereich',
+    'Quick actions': 'Schnellaktionen',
+    'Patients': 'Patienten',
+    'Assignments': 'Zuweisungen',
+    'Analytics': 'Analysen',
+    'Pricing': 'Preise',
+    'Dashboard': 'Dashboard',
+    "Today's Appointments": 'Heutige Termine',
+    'Total Patients': 'Gesamtpatienten',
+    'Pending Reviews': 'Ausstehende Prüfungen',
+    "Today's Actions": 'Heutige Aktionen',
+    'Visit Queue': 'Besuchswarteschlange',
+    'Appointments': 'Termine',
+    'Care Snapshot': 'Pflegeübersicht',
+    'Activity': 'Aktivität',
+    'Notifications': 'Benachrichtigungen',
+    'No upcoming visits.': 'Keine bevorstehenden Besuche.',
+    'No appointments.': 'Keine Termine.',
+    'No recent activity.': 'Keine aktuelle Aktivität.',
+    'No notifications.': 'Keine Benachrichtigungen.',
+    'Read': 'Gelesen',
+    'New': 'Neu',
+    'Close': 'Schließen',
+    'Cancel': 'Abbrechen',
+  },
+  ar: {
+    'Telehealth Console': 'لوحة التطبيب عن بُعد',
+    'Login': 'تسجيل الدخول',
+    'Logout': 'تسجيل الخروج',
+    'Settings': 'الإعدادات',
+    'Create account': 'إنشاء حساب',
+    'Back to products': 'العودة إلى المنتجات',
+    'Email': 'البريد الإلكتروني',
+    'Password': 'كلمة المرور',
+    'Sign in': 'دخول',
+    'Name (optional)': 'الاسم (اختياري)',
+    'Role': 'الدور',
+    'Country': 'الدولة',
+    'Need an account? Create one': 'تحتاج حسابًا؟ أنشئ حسابًا',
+    'Already have an account? Sign in': 'لديك حساب؟ سجّل الدخول',
+    'Change workspace': 'تغيير مساحة العمل',
+    'Workspace': 'مساحة العمل',
+    'Quick actions': 'إجراءات سريعة',
+    'Patients': 'المرضى',
+    'Assignments': 'المهام',
+    'Analytics': 'التحليلات',
+    'Pricing': 'الأسعار',
+    'Dashboard': 'لوحة التحكم',
+    "Today's Appointments": 'مواعيد اليوم',
+    'Total Patients': 'إجمالي المرضى',
+    'Pending Reviews': 'مراجعات معلّقة',
+    "Today's Actions": 'إجراءات اليوم',
+    'Visit Queue': 'قائمة الزيارات',
+    'Appointments': 'المواعيد',
+    'Care Snapshot': 'ملخص الرعاية',
+    'Activity': 'النشاط',
+    'Notifications': 'الإشعارات',
+    'No upcoming visits.': 'لا توجد زيارات قادمة.',
+    'No appointments.': 'لا توجد مواعيد.',
+    'No recent activity.': 'لا يوجد نشاط حديث.',
+    'No notifications.': 'لا توجد إشعارات.',
+    'Read': 'مقروء',
+    'New': 'جديد',
+    'Close': 'إغلاق',
+    'Cancel': 'إلغاء',
+  },
+  ja: {
+    'Telehealth Console': '遠隔医療コンソール',
+    'Login': 'ログイン',
+    'Logout': 'ログアウト',
+    'Settings': '設定',
+    'Create account': 'アカウント作成',
+    'Back to products': '製品に戻る',
+    'Email': 'メール',
+    'Password': 'パスワード',
+    'Sign in': 'サインイン',
+    'Name (optional)': '名前（任意）',
+    'Role': '役割',
+    'Country': '国',
+    'Need an account? Create one': 'アカウントが必要ですか？作成する',
+    'Already have an account? Sign in': '既にアカウントをお持ちですか？サインイン',
+    'Change workspace': 'ワークスペースを変更',
+    'Workspace': 'ワークスペース',
+    'Quick actions': 'クイックアクション',
+    'Patients': '患者',
+    'Assignments': '割り当て',
+    'Analytics': '分析',
+    'Pricing': '料金',
+    'Dashboard': 'ダッシュボード',
+    "Today's Appointments": '本日の予約',
+    'Total Patients': '患者総数',
+    'Pending Reviews': '保留中レビュー',
+    "Today's Actions": '本日のアクション',
+    'Visit Queue': '診療待ちキュー',
+    'Appointments': '予約',
+    'Care Snapshot': 'ケア概要',
+    'Activity': 'アクティビティ',
+    'Notifications': '通知',
+    'No upcoming visits.': '今後の来院はありません。',
+    'No appointments.': '予約はありません。',
+    'No recent activity.': '最近のアクティビティはありません。',
+    'No notifications.': '通知はありません。',
+    'Read': '既読',
+    'New': '新規',
+    'Close': '閉じる',
+    'Cancel': 'キャンセル',
+  },
+  ko: {
+    'Telehealth Console': '원격의료 콘솔',
+    'Login': '로그인',
+    'Logout': '로그아웃',
+    'Settings': '설정',
+    'Create account': '계정 만들기',
+    'Back to products': '제품으로 돌아가기',
+    'Email': '이메일',
+    'Password': '비밀번호',
+    'Sign in': '로그인',
+    'Name (optional)': '이름(선택)',
+    'Role': '역할',
+    'Country': '국가',
+    'Need an account? Create one': '계정이 필요하신가요? 만들기',
+    'Already have an account? Sign in': '이미 계정이 있나요? 로그인',
+    'Change workspace': '워크스페이스 변경',
+    'Workspace': '워크스페이스',
+    'Quick actions': '빠른 작업',
+    'Patients': '환자',
+    'Assignments': '배정',
+    'Analytics': '분석',
+    'Pricing': '요금',
+    'Dashboard': '대시보드',
+    "Today's Appointments": '오늘의 예약',
+    'Total Patients': '총 환자 수',
+    'Pending Reviews': '검토 대기',
+    "Today's Actions": '오늘의 작업',
+    'Visit Queue': '진료 대기열',
+    'Appointments': '예약',
+    'Care Snapshot': '케어 요약',
+    'Activity': '활동',
+    'Notifications': '알림',
+    'No upcoming visits.': '예정된 방문이 없습니다.',
+    'No appointments.': '예약이 없습니다.',
+    'No recent activity.': '최근 활동이 없습니다.',
+    'No notifications.': '알림이 없습니다.',
+    'Read': '읽음',
+    'New': '새 항목',
+    'Close': '닫기',
+    'Cancel': '취소',
+  },
+  hi: {
+    'Telehealth Console': 'टेलीहेल्थ कंसोल',
+    'Login': 'लॉग इन',
+    'Logout': 'लॉग आउट',
+    'Settings': 'सेटिंग्स',
+    'Create account': 'खाता बनाएं',
+    'Back to products': 'प्रोडक्ट्स पर वापस जाएं',
+    'Email': 'ईमेल',
+    'Password': 'पासवर्ड',
+    'Sign in': 'साइन इन',
+    'Name (optional)': 'नाम (वैकल्पिक)',
+    'Role': 'भूमिका',
+    'Country': 'देश',
+    'Need an account? Create one': 'खाता चाहिए? नया बनाएं',
+    'Already have an account? Sign in': 'पहले से खाता है? साइन इन करें',
+    'Change workspace': 'वर्कस्पेस बदलें',
+    'Workspace': 'वर्कस्पेस',
+    'Quick actions': 'त्वरित कार्य',
+    'Patients': 'मरीज',
+    'Assignments': 'असाइनमेंट',
+    'Analytics': 'एनालिटिक्स',
+    'Pricing': 'मूल्य निर्धारण',
+    'Dashboard': 'डैशबोर्ड',
+    "Today's Appointments": 'आज की अपॉइंटमेंट्स',
+    'Total Patients': 'कुल मरीज',
+    'Pending Reviews': 'लंबित समीक्षा',
+    "Today's Actions": 'आज के कार्य',
+    'Visit Queue': 'विजिट कतार',
+    'Appointments': 'अपॉइंटमेंट्स',
+    'Care Snapshot': 'देखभाल सारांश',
+    'Activity': 'गतिविधि',
+    'Notifications': 'सूचनाएं',
+    'No upcoming visits.': 'कोई आगामी विजिट नहीं।',
+    'No appointments.': 'कोई अपॉइंटमेंट नहीं।',
+    'No recent activity.': 'हाल की कोई गतिविधि नहीं।',
+    'No notifications.': 'कोई सूचना नहीं।',
+    'Read': 'पढ़ा गया',
+    'New': 'नया',
+    'Close': 'बंद करें',
+    'Cancel': 'रद्द करें',
+  },
+  bn: {
+    'Telehealth Console': 'টেলিহেলথ কনসোল',
+    'Login': 'লগইন',
+    'Logout': 'লগআউট',
+    'Settings': 'সেটিংস',
+    'Create account': 'অ্যাকাউন্ট তৈরি করুন',
+    'Back to products': 'পণ্য পাতায় ফিরে যান',
+    'Email': 'ইমেইল',
+    'Password': 'পাসওয়ার্ড',
+    'Sign in': 'সাইন ইন',
+    'Name (optional)': 'নাম (ঐচ্ছিক)',
+    'Role': 'ভূমিকা',
+    'Country': 'দেশ',
+    'Need an account? Create one': 'অ্যাকাউন্ট লাগবে? তৈরি করুন',
+    'Already have an account? Sign in': 'আগে থেকেই অ্যাকাউন্ট আছে? সাইন ইন করুন',
+    'Change workspace': 'ওয়ার্কস্পেস পরিবর্তন করুন',
+    'Workspace': 'ওয়ার্কস্পেস',
+    'Quick actions': 'দ্রুত কাজ',
+    'Patients': 'রোগী',
+    'Assignments': 'অ্যাসাইনমেন্ট',
+    'Analytics': 'অ্যানালিটিক্স',
+    'Pricing': 'মূল্য',
+    'Dashboard': 'ড্যাশবোর্ড',
+    "Today's Appointments": 'আজকের অ্যাপয়েন্টমেন্ট',
+    'Total Patients': 'মোট রোগী',
+    'Pending Reviews': 'অপেক্ষমাণ রিভিউ',
+    "Today's Actions": 'আজকের কাজ',
+    'Visit Queue': 'ভিজিট কিউ',
+    'Appointments': 'অ্যাপয়েন্টমেন্ট',
+    'Care Snapshot': 'যত্নের সারসংক্ষেপ',
+    'Activity': 'কার্যকলাপ',
+    'Notifications': 'নোটিফিকেশন',
+    'No upcoming visits.': 'কোনো আসন্ন ভিজিট নেই।',
+    'No appointments.': 'কোনো অ্যাপয়েন্টমেন্ট নেই।',
+    'No recent activity.': 'সাম্প্রতিক কোনো কার্যকলাপ নেই।',
+    'No notifications.': 'কোনো নোটিফিকেশন নেই।',
+    'Read': 'পড়া',
+    'New': 'নতুন',
+    'Close': 'বন্ধ',
+    'Cancel': 'বাতিল',
+  },
+  id: {
+    'Telehealth Console': 'Konsol Telehealth',
+    'Login': 'Masuk',
+    'Logout': 'Keluar',
+    'Settings': 'Pengaturan',
+    'Create account': 'Buat akun',
+    'Back to products': 'Kembali ke produk',
+    'Email': 'Email',
+    'Password': 'Kata sandi',
+    'Sign in': 'Masuk',
+    'Name (optional)': 'Nama (opsional)',
+    'Role': 'Peran',
+    'Country': 'Negara',
+    'Need an account? Create one': 'Butuh akun? Buat sekarang',
+    'Already have an account? Sign in': 'Sudah punya akun? Masuk',
+    'Change workspace': 'Ganti workspace',
+    'Workspace': 'Workspace',
+    'Quick actions': 'Aksi cepat',
+    'Patients': 'Pasien',
+    'Assignments': 'Penugasan',
+    'Analytics': 'Analitik',
+    'Pricing': 'Harga',
+    'Dashboard': 'Dasbor',
+    "Today's Appointments": 'Janji temu hari ini',
+    'Total Patients': 'Total pasien',
+    'Pending Reviews': 'Tinjauan tertunda',
+    "Today's Actions": 'Aksi hari ini',
+    'Visit Queue': 'Antrian kunjungan',
+    'Appointments': 'Janji temu',
+    'Care Snapshot': 'Ringkasan perawatan',
+    'Activity': 'Aktivitas',
+    'Notifications': 'Notifikasi',
+    'No upcoming visits.': 'Tidak ada kunjungan mendatang.',
+    'No appointments.': 'Tidak ada janji temu.',
+    'No recent activity.': 'Tidak ada aktivitas terbaru.',
+    'No notifications.': 'Tidak ada notifikasi.',
+    'Read': 'Dibaca',
+    'New': 'Baru',
+    'Close': 'Tutup',
+    'Cancel': 'Batal',
+  },
+  vi: {
+    'Telehealth Console': 'Bảng điều khiển Telehealth',
+    'Login': 'Đăng nhập',
+    'Logout': 'Đăng xuất',
+    'Settings': 'Cài đặt',
+    'Create account': 'Tạo tài khoản',
+    'Back to products': 'Quay lại sản phẩm',
+    'Email': 'Email',
+    'Password': 'Mật khẩu',
+    'Sign in': 'Đăng nhập',
+    'Name (optional)': 'Tên (tùy chọn)',
+    'Role': 'Vai trò',
+    'Country': 'Quốc gia',
+    'Need an account? Create one': 'Cần tài khoản? Tạo ngay',
+    'Already have an account? Sign in': 'Đã có tài khoản? Đăng nhập',
+    'Change workspace': 'Đổi không gian làm việc',
+    'Workspace': 'Không gian làm việc',
+    'Quick actions': 'Thao tác nhanh',
+    'Patients': 'Bệnh nhân',
+    'Assignments': 'Phân công',
+    'Analytics': 'Phân tích',
+    'Pricing': 'Bảng giá',
+    'Dashboard': 'Bảng điều khiển',
+    "Today's Appointments": 'Lịch hẹn hôm nay',
+    'Total Patients': 'Tổng bệnh nhân',
+    'Pending Reviews': 'Đánh giá chờ xử lý',
+    "Today's Actions": 'Việc hôm nay',
+    'Visit Queue': 'Hàng đợi khám',
+    'Appointments': 'Lịch hẹn',
+    'Care Snapshot': 'Tổng quan chăm sóc',
+    'Activity': 'Hoạt động',
+    'Notifications': 'Thông báo',
+    'No upcoming visits.': 'Không có lượt khám sắp tới.',
+    'No appointments.': 'Không có lịch hẹn.',
+    'No recent activity.': 'Không có hoạt động gần đây.',
+    'No notifications.': 'Không có thông báo.',
+    'Read': 'Đã đọc',
+    'New': 'Mới',
+    'Close': 'Đóng',
+    'Cancel': 'Hủy',
+  },
+  th: {
+    'Telehealth Console': 'คอนโซลเทเลเฮลธ์',
+    'Login': 'เข้าสู่ระบบ',
+    'Logout': 'ออกจากระบบ',
+    'Settings': 'การตั้งค่า',
+    'Create account': 'สร้างบัญชี',
+    'Back to products': 'กลับไปยังผลิตภัณฑ์',
+    'Email': 'อีเมล',
+    'Password': 'รหัสผ่าน',
+    'Sign in': 'ลงชื่อเข้าใช้',
+    'Name (optional)': 'ชื่อ (ไม่บังคับ)',
+    'Role': 'บทบาท',
+    'Country': 'ประเทศ',
+    'Need an account? Create one': 'ต้องการบัญชี? สร้างเลย',
+    'Already have an account? Sign in': 'มีบัญชีแล้ว? เข้าสู่ระบบ',
+    'Change workspace': 'เปลี่ยนเวิร์กสเปซ',
+    'Workspace': 'เวิร์กสเปซ',
+    'Quick actions': 'การดำเนินการด่วน',
+    'Patients': 'ผู้ป่วย',
+    'Assignments': 'งานที่มอบหมาย',
+    'Analytics': 'การวิเคราะห์',
+    'Pricing': 'ราคา',
+    'Dashboard': 'แดชบอร์ด',
+    "Today's Appointments": 'นัดหมายวันนี้',
+    'Total Patients': 'ผู้ป่วยทั้งหมด',
+    'Pending Reviews': 'รอตรวจสอบ',
+    "Today's Actions": 'งานวันนี้',
+    'Visit Queue': 'คิวเข้าพบ',
+    'Appointments': 'นัดหมาย',
+    'Care Snapshot': 'สรุปการดูแล',
+    'Activity': 'กิจกรรม',
+    'Notifications': 'การแจ้งเตือน',
+    'No upcoming visits.': 'ไม่มีการเข้าพบที่กำลังจะมาถึง',
+    'No appointments.': 'ไม่มีนัดหมาย',
+    'No recent activity.': 'ไม่มีกิจกรรมล่าสุด',
+    'No notifications.': 'ไม่มีการแจ้งเตือน',
+    'Read': 'อ่านแล้ว',
+    'New': 'ใหม่',
+    'Close': 'ปิด',
+    'Cancel': 'ยกเลิก',
+  },
+  ru: {
+    'Telehealth Console': 'Консоль телемедицины',
+    'Login': 'Войти',
+    'Logout': 'Выйти',
+    'Settings': 'Настройки',
+    'Create account': 'Создать аккаунт',
+    'Back to products': 'Назад к продуктам',
+    'Email': 'Эл. почта',
+    'Password': 'Пароль',
+    'Sign in': 'Войти',
+    'Name (optional)': 'Имя (необязательно)',
+    'Role': 'Роль',
+    'Country': 'Страна',
+    'Need an account? Create one': 'Нужен аккаунт? Создайте',
+    'Already have an account? Sign in': 'Уже есть аккаунт? Войдите',
+    'Change workspace': 'Сменить рабочее пространство',
+    'Workspace': 'Рабочее пространство',
+    'Quick actions': 'Быстрые действия',
+    'Patients': 'Пациенты',
+    'Assignments': 'Назначения',
+    'Analytics': 'Аналитика',
+    'Pricing': 'Тарифы',
+    'Dashboard': 'Панель',
+    "Today's Appointments": 'Приёмы на сегодня',
+    'Total Patients': 'Всего пациентов',
+    'Pending Reviews': 'Ожидают проверки',
+    "Today's Actions": 'Действия на сегодня',
+    'Visit Queue': 'Очередь визитов',
+    'Appointments': 'Приёмы',
+    'Care Snapshot': 'Сводка ухода',
+    'Activity': 'Активность',
+    'Notifications': 'Уведомления',
+    'No upcoming visits.': 'Нет предстоящих визитов.',
+    'No appointments.': 'Нет приёмов.',
+    'No recent activity.': 'Нет недавней активности.',
+    'No notifications.': 'Нет уведомлений.',
+    'Read': 'Прочитано',
+    'New': 'Новое',
+    'Close': 'Закрыть',
+    'Cancel': 'Отмена',
+  },
+  tr: {
+    'Telehealth Console': 'Tele-sağlık Konsolu',
+    'Login': 'Giriş yap',
+    'Logout': 'Çıkış yap',
+    'Settings': 'Ayarlar',
+    'Create account': 'Hesap oluştur',
+    'Back to products': 'Ürünlere dön',
+    'Email': 'E-posta',
+    'Password': 'Şifre',
+    'Sign in': 'Oturum aç',
+    'Name (optional)': 'Ad (isteğe bağlı)',
+    'Role': 'Rol',
+    'Country': 'Ülke',
+    'Need an account? Create one': 'Hesaba mı ihtiyacın var? Oluştur',
+    'Already have an account? Sign in': 'Zaten hesabın var mı? Giriş yap',
+    'Change workspace': 'Çalışma alanını değiştir',
+    'Workspace': 'Çalışma alanı',
+    'Quick actions': 'Hızlı işlemler',
+    'Patients': 'Hastalar',
+    'Assignments': 'Atamalar',
+    'Analytics': 'Analitik',
+    'Pricing': 'Fiyatlandırma',
+    'Dashboard': 'Panel',
+    "Today's Appointments": 'Bugünkü randevular',
+    'Total Patients': 'Toplam hasta',
+    'Pending Reviews': 'Bekleyen incelemeler',
+    "Today's Actions": 'Bugünkü işlemler',
+    'Visit Queue': 'Ziyaret kuyruğu',
+    'Appointments': 'Randevular',
+    'Care Snapshot': 'Bakım özeti',
+    'Activity': 'Etkinlik',
+    'Notifications': 'Bildirimler',
+    'No upcoming visits.': 'Yaklaşan ziyaret yok.',
+    'No appointments.': 'Randevu yok.',
+    'No recent activity.': 'Son etkinlik yok.',
+    'No notifications.': 'Bildirim yok.',
+    'Read': 'Okundu',
+    'New': 'Yeni',
+    'Close': 'Kapat',
+    'Cancel': 'İptal',
+  },
+  it: {
+    'Telehealth Console': 'Console di Telemedicina',
+    'Login': 'Accedi',
+    'Logout': 'Esci',
+    'Settings': 'Impostazioni',
+    'Create account': 'Crea account',
+    'Back to products': 'Torna ai prodotti',
+    'Email': 'Email',
+    'Password': 'Password',
+    'Sign in': 'Accedi',
+    'Name (optional)': 'Nome (opzionale)',
+    'Role': 'Ruolo',
+    'Country': 'Paese',
+    'Need an account? Create one': 'Hai bisogno di un account? Creane uno',
+    'Already have an account? Sign in': 'Hai già un account? Accedi',
+    'Change workspace': 'Cambia workspace',
+    'Workspace': 'Workspace',
+    'Quick actions': 'Azioni rapide',
+    'Patients': 'Pazienti',
+    'Assignments': 'Assegnazioni',
+    'Analytics': 'Analisi',
+    'Pricing': 'Prezzi',
+    'Dashboard': 'Dashboard',
+    "Today's Appointments": 'Appuntamenti di oggi',
+    'Total Patients': 'Pazienti totali',
+    'Pending Reviews': 'Revisioni in sospeso',
+    "Today's Actions": 'Azioni di oggi',
+    'Visit Queue': 'Coda visite',
+    'Appointments': 'Appuntamenti',
+    'Care Snapshot': 'Panoramica assistenza',
+    'Activity': 'Attività',
+    'Notifications': 'Notifiche',
+    'No upcoming visits.': 'Nessuna visita imminente.',
+    'No appointments.': 'Nessun appuntamento.',
+    'No recent activity.': 'Nessuna attività recente.',
+    'No notifications.': 'Nessuna notifica.',
+    'Read': 'Letto',
+    'New': 'Nuovo',
+    'Close': 'Chiudi',
+    'Cancel': 'Annulla',
+  },
+  nl: {
+    'Telehealth Console': 'Telehealth-console',
+    'Login': 'Inloggen',
+    'Logout': 'Uitloggen',
+    'Settings': 'Instellingen',
+    'Create account': 'Account aanmaken',
+    'Back to products': 'Terug naar producten',
+    'Email': 'E-mail',
+    'Password': 'Wachtwoord',
+    'Sign in': 'Aanmelden',
+    'Name (optional)': 'Naam (optioneel)',
+    'Role': 'Rol',
+    'Country': 'Land',
+    'Need an account? Create one': 'Account nodig? Maak er één',
+    'Already have an account? Sign in': 'Al een account? Meld je aan',
+    'Change workspace': 'Werkruimte wijzigen',
+    'Workspace': 'Werkruimte',
+    'Quick actions': 'Snelle acties',
+    'Patients': 'Patiënten',
+    'Assignments': 'Toewijzingen',
+    'Analytics': 'Analyses',
+    'Pricing': 'Prijzen',
+    'Dashboard': 'Dashboard',
+    "Today's Appointments": 'Afspraken van vandaag',
+    'Total Patients': 'Totaal patiënten',
+    'Pending Reviews': 'Openstaande beoordelingen',
+    "Today's Actions": 'Acties van vandaag',
+    'Visit Queue': 'Bezoekwachtrij',
+    'Appointments': 'Afspraken',
+    'Care Snapshot': 'Zorgoverzicht',
+    'Activity': 'Activiteit',
+    'Notifications': 'Meldingen',
+    'No upcoming visits.': 'Geen aankomende bezoeken.',
+    'No appointments.': 'Geen afspraken.',
+    'No recent activity.': 'Geen recente activiteit.',
+    'No notifications.': 'Geen meldingen.',
+    'Read': 'Gelezen',
+    'New': 'Nieuw',
+    'Close': 'Sluiten',
+    'Cancel': 'Annuleren',
+  },
+  sv: {
+    'Telehealth Console': 'Telehälsokonsol',
+    'Login': 'Logga in',
+    'Logout': 'Logga ut',
+    'Settings': 'Inställningar',
+    'Create account': 'Skapa konto',
+    'Back to products': 'Tillbaka till produkter',
+    'Email': 'E-post',
+    'Password': 'Lösenord',
+    'Sign in': 'Logga in',
+    'Name (optional)': 'Namn (valfritt)',
+    'Role': 'Roll',
+    'Country': 'Land',
+    'Need an account? Create one': 'Behöver du ett konto? Skapa ett',
+    'Already have an account? Sign in': 'Har du redan ett konto? Logga in',
+    'Change workspace': 'Byt arbetsyta',
+    'Workspace': 'Arbetsyta',
+    'Quick actions': 'Snabbåtgärder',
+    'Patients': 'Patienter',
+    'Assignments': 'Tilldelningar',
+    'Analytics': 'Analys',
+    'Pricing': 'Priser',
+    'Dashboard': 'Översikt',
+    "Today's Appointments": 'Dagens bokningar',
+    'Total Patients': 'Totalt antal patienter',
+    'Pending Reviews': 'Väntande granskningar',
+    "Today's Actions": 'Dagens åtgärder',
+    'Visit Queue': 'Besökskö',
+    'Appointments': 'Bokningar',
+    'Care Snapshot': 'Vårdöversikt',
+    'Activity': 'Aktivitet',
+    'Notifications': 'Aviseringar',
+    'No upcoming visits.': 'Inga kommande besök.',
+    'No appointments.': 'Inga bokningar.',
+    'No recent activity.': 'Ingen nylig aktivitet.',
+    'No notifications.': 'Inga aviseringar.',
+    'Read': 'Läst',
+    'New': 'Ny',
+    'Close': 'Stäng',
+    'Cancel': 'Avbryt',
+  },
+  pl: {
+    'Telehealth Console': 'Konsola telemedyczna',
+    'Login': 'Zaloguj',
+    'Logout': 'Wyloguj',
+    'Settings': 'Ustawienia',
+    'Create account': 'Utwórz konto',
+    'Back to products': 'Wróć do produktów',
+    'Email': 'E-mail',
+    'Password': 'Hasło',
+    'Sign in': 'Zaloguj się',
+    'Name (optional)': 'Imię (opcjonalnie)',
+    'Role': 'Rola',
+    'Country': 'Kraj',
+    'Need an account? Create one': 'Potrzebujesz konta? Utwórz je',
+    'Already have an account? Sign in': 'Masz już konto? Zaloguj się',
+    'Change workspace': 'Zmień obszar roboczy',
+    'Workspace': 'Obszar roboczy',
+    'Quick actions': 'Szybkie akcje',
+    'Patients': 'Pacjenci',
+    'Assignments': 'Przydziały',
+    'Analytics': 'Analityka',
+    'Pricing': 'Cennik',
+    'Dashboard': 'Panel',
+    "Today's Appointments": 'Dzisiejsze wizyty',
+    'Total Patients': 'Łącznie pacjentów',
+    'Pending Reviews': 'Oczekujące przeglądy',
+    "Today's Actions": 'Dzisiejsze działania',
+    'Visit Queue': 'Kolejka wizyt',
+    'Appointments': 'Wizyty',
+    'Care Snapshot': 'Podsumowanie opieki',
+    'Activity': 'Aktywność',
+    'Notifications': 'Powiadomienia',
+    'No upcoming visits.': 'Brak nadchodzących wizyt.',
+    'No appointments.': 'Brak wizyt.',
+    'No recent activity.': 'Brak ostatniej aktywności.',
+    'No notifications.': 'Brak powiadomień.',
+    'Read': 'Przeczytane',
+    'New': 'Nowe',
+    'Close': 'Zamknij',
+    'Cancel': 'Anuluj',
+  },
+  he: {
+    'Telehealth Console': 'קונסולת טלה-רפואה',
+    'Login': 'התחברות',
+    'Logout': 'התנתקות',
+    'Settings': 'הגדרות',
+    'Create account': 'יצירת חשבון',
+    'Back to products': 'חזרה למוצרים',
+    'Email': 'אימייל',
+    'Password': 'סיסמה',
+    'Sign in': 'כניסה',
+    'Name (optional)': 'שם (אופציונלי)',
+    'Role': 'תפקיד',
+    'Country': 'מדינה',
+    'Need an account? Create one': 'צריך חשבון? צור חשבון',
+    'Already have an account? Sign in': 'כבר יש לך חשבון? התחבר',
+    'Change workspace': 'שנה סביבת עבודה',
+    'Workspace': 'סביבת עבודה',
+    'Quick actions': 'פעולות מהירות',
+    'Patients': 'מטופלים',
+    'Assignments': 'הקצאות',
+    'Analytics': 'אנליטיקה',
+    'Pricing': 'תמחור',
+    'Dashboard': 'לוח מחוונים',
+    "Today's Appointments": 'התורים של היום',
+    'Total Patients': 'סה״כ מטופלים',
+    'Pending Reviews': 'סקירות ממתינות',
+    "Today's Actions": 'משימות היום',
+    'Visit Queue': 'תור ביקורים',
+    'Appointments': 'תורים',
+    'Care Snapshot': 'תמונת מצב טיפולית',
+    'Activity': 'פעילות',
+    'Notifications': 'התראות',
+    'No upcoming visits.': 'אין ביקורים קרובים.',
+    'No appointments.': 'אין תורים.',
+    'No recent activity.': 'אין פעילות אחרונה.',
+    'No notifications.': 'אין התראות.',
+    'Read': 'נקרא',
+    'New': 'חדש',
+    'Close': 'סגור',
+    'Cancel': 'ביטול',
+  },
+};
+
+Object.assign(TRANSLATIONS, EXTENDED_TRANSLATIONS);
+
 const makeLocaleFallbackTranslator = (shortCode) => {
   const suffix = ` [${String(shortCode || '').toUpperCase()}]`;
   return (text) => {
@@ -717,6 +1378,7 @@ const App = () => {
   const [showRefillModal, setShowRefillModal] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptData, setReceiptData] = useState(null);
+  const [workspaceMainSection, setWorkspaceMainSection] = useState('dashboard');
   const [telehealthSummaryPatient, setTelehealthSummaryPatient] = useState(null);
   const [showTelehealthSummary, setShowTelehealthSummary] = useState(false);
   const [activeTelehealthVisit, setActiveTelehealthVisit] = useState(null);
@@ -748,6 +1410,11 @@ const App = () => {
   const openExclusiveModal = (openFn) => {
     closeExclusiveModal();
     openFn?.();
+  };
+
+  const openSidebarMainSection = (section) => {
+    closeExclusiveModal();
+    setWorkspaceMainSection(section || 'dashboard');
   };
 
   useEffect(() => {
@@ -2753,7 +3420,7 @@ const App = () => {
   const showPatientsMenu = isAdminUser || isDoctorOrNurse;
   const showAssignmentsMenu = isAdminUser || isDoctorOrNurse;
   const showAnalyticsMenu = isAdminUser && normalizeProductKey(desiredProduct) === 'telehealth';
-  const primaryMenuKey = showAdminDashboard ? 'dashboard' : (showPatientsMenu ? 'patients' : 'settings');
+  const primaryMenuKey = workspaceMainSection;
   const topSummaryMetrics = isMyHealthWorkspace
     ? myHealthMetrics
     : [
@@ -2769,6 +3436,266 @@ const App = () => {
   const workspaceFooterLogoSrc = workspaceKey === 'myhealth' ? homecareLogo : '/WHSF.jpg';
   const workspaceFooterLogoAlt = workspaceKey === 'myhealth' ? 'My HomeCare Online' : 'WHS Foundation';
   const showCareTeamModeLabel = workspaceKey === 'homecare' && !['doctor', 'nurse'].includes(userRole);
+
+  const renderWorkspaceMainPanel = () => {
+    if (workspaceMainSection === 'patients') {
+      return (
+        <PatientsModule
+          inline
+          show
+          onHide={() => setWorkspaceMainSection('dashboard')}
+          currentUser={user}
+          patients={clinicData.patients}
+          providers={clinicData.providers}
+          homecareTasks={clinicData.homecareTasks || []}
+          onSavePatient={(payload) => upsertPatient(payload)}
+          onStartEncounter={({ patientId }) => {
+            setActiveTelehealthVisit({ patientId, startedAt: new Date().toISOString(), status: 'in_progress' });
+            setQuickActionVariant('success');
+            setQuickActionMessage('Encounter started.');
+          }}
+          onCreateHomecareTask={(payload) => handleCreateHomecareTask(payload)}
+          onOpenChart={(p) => {
+            setChartPatient(p);
+            openExclusiveModal(() => setChartModal(true));
+          }}
+          onOpenRecords={(p) => {
+            setRecordPatient(p);
+            openExclusiveModal(() => setRecordModal(true));
+          }}
+          t={t}
+        />
+      );
+    }
+
+    if (workspaceMainSection === 'assignments') {
+      return (
+        <PatientAssignmentModule
+          inline
+          show
+          onHide={() => setWorkspaceMainSection('dashboard')}
+          currentUser={{ id: user?.id, role: user?.role, name: user?.email || 'User' }}
+          onAssignmentUpdate={refreshStore}
+          onViewDetails={(p) => {
+            setRecordPatient(p);
+            openExclusiveModal(() => setRecordModal(true));
+          }}
+          onViewRecord={(p) => {
+            setRecordPatient(p);
+            openExclusiveModal(() => setRecordModal(true));
+          }}
+          enableRecordQuickOpen
+        />
+      );
+    }
+
+    if (workspaceMainSection === 'analytics') {
+      return (
+        <AnalyticsDashboard
+          inline
+          show
+          onHide={() => setWorkspaceMainSection('dashboard')}
+          appointments={clinicData.appointments}
+          labs={clinicData.labs}
+          t={t}
+        />
+      );
+    }
+
+    return (
+      <>
+        <section className="TopSummaryBand mb-4">
+          <Card className="card-plain workspace-topbar mb-3">
+            <Card.Body className="d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div>
+                <div className="text-uppercase small text-muted fw-semibold">{t('Workspace')}</div>
+                <div className="fw-bold fs-5">{getProductTitle(desiredProduct) || t('Workspace')}</div>
+              </div>
+              <div className="d-flex gap-2">
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => {
+                    setActivePortal(null);
+                    setShowLogin(false);
+                    window.history.replaceState({}, '', '/');
+                  }}
+                >
+                  {t('Change workspace')}
+                </Button>
+                {normalizeProductKey(desiredProduct) === 'telehealth' && (
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    onClick={() => requireAccess('analytics', () => openExclusiveModal(() => setShowAnalytics(true)))}
+                  >
+                    {t('Analytics')}
+                  </Button>
+                )}
+                {user?.role === 'admin' && normalizeProductKey(desiredProduct) === 'telehealth' && (
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    onClick={() => {
+                      setUser((prev) => {
+                        const nextMode = String(prev?.viewMode || 'doctor').trim().toLowerCase() === 'doctor' ? 'nurse' : 'doctor';
+                        return { ...prev, viewMode: nextMode };
+                      });
+                    }}
+                  >
+                    {t('Change User View')}
+                  </Button>
+                )}
+              </div>
+            </Card.Body>
+          </Card>
+
+          <Card className="card-plain workspace-metrics">
+            <Card.Body>
+              <div className="workspace-metrics-grid">
+                {topSummaryMetrics.map((metric) => (
+                  <div key={metric.label} className="workspace-metric-item">
+                    <div className="workspace-metric-label">{t(metric.label)}</div>
+                    <div className="workspace-metric-value">{metric.value}</div>
+                  </div>
+                ))}
+              </div>
+            </Card.Body>
+          </Card>
+        </section>
+
+        <section className="PrimaryActionsPanel mb-4">
+          <Card className="card-plain">
+            <Card.Body>
+              <Card.Title className="mb-0">{t("Today's Actions")}</Card.Title>
+              <div className="workspace-primary-actions mt-3">
+                {renderQuickActions()}
+              </div>
+              {quickActionMessage && (
+                <Alert
+                  variant={quickActionVariant}
+                  className="mt-3 mb-0"
+                  dismissible
+                  onClose={() => setQuickActionMessage('')}
+                >
+                  {quickActionMessage}
+                </Alert>
+              )}
+            </Card.Body>
+          </Card>
+        </section>
+
+        <section className="WorkspaceGrid grid-desktop-2col">
+          <div className="workspace-grid-left d-grid gap-3">
+            {!isMyHealthWorkspace && (
+              <Card className="card-plain">
+                <Card.Body>
+                  <Card.Title>{t('Visit Queue')}</Card.Title>
+                  <div className="overflow-y-auto" style={{ maxHeight: '420px' }}>
+                    <ListGroup variant="flush">
+                      {workspaceVisitQueue.map((a) => (
+                        <ListGroup.Item key={a.id} className="d-flex justify-content-between align-items-center">
+                          <div>
+                            <div className="fw-semibold">{a.patientName || t('Patient')}</div>
+                            <div className="text-muted" style={{ fontSize: 12 }}>
+                              {a.type || t('Visit')} • {a.startAt ? new Date(a.startAt).toLocaleString() : t('TBD')}
+                            </div>
+                          </div>
+                          <Badge bg="secondary" className="text-uppercase">{a.status || t('scheduled')}</Badge>
+                        </ListGroup.Item>
+                      ))}
+                      {!workspaceVisitQueue.length && <ListGroup.Item className="text-muted">{t('No upcoming visits.')}</ListGroup.Item>}
+                    </ListGroup>
+                  </div>
+                </Card.Body>
+              </Card>
+            )}
+
+            <Card className="card-plain">
+              <Card.Body>
+                <Card.Title>{t('Appointments')}</Card.Title>
+                <div className="overflow-x-auto">
+                  <ListGroup variant="flush">
+                    {(clinicData.appointments || []).slice(0, 12).map((appt, idx) => (
+                      <ListGroup.Item key={appt?.id || `${appt?.patientId || 'appt'}_${idx}`} className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <div className="fw-semibold">{appt?.patientName || t('Patient')}</div>
+                          <div className="text-muted" style={{ fontSize: 12 }}>{appt?.type || t('Appointment')}</div>
+                        </div>
+                        <div className="text-muted" style={{ fontSize: 12 }}>{appt?.startAt ? new Date(appt.startAt).toLocaleString() : t('TBD')}</div>
+                      </ListGroup.Item>
+                    ))}
+                    {!(clinicData.appointments || []).length && <ListGroup.Item className="text-muted">{t('No appointments.')}</ListGroup.Item>}
+                  </ListGroup>
+                </div>
+              </Card.Body>
+            </Card>
+
+            <Card className="card-plain">
+              <Card.Body>
+                <Card.Title>{t('Care Snapshot')}</Card.Title>
+                {renderDashboard()}
+              </Card.Body>
+            </Card>
+          </div>
+
+          <div className="workspace-grid-right d-grid gap-3">
+            <Card className="card-plain">
+              <Card.Body>
+                <Card.Title>{t('Activity')}</Card.Title>
+                <div className="overflow-y-auto" style={{ maxHeight: '420px' }}>
+                  <ListGroup variant="flush">
+                    {workspaceActivity.map((n) => (
+                      <ListGroup.Item key={n.id}>
+                        <div className="fw-semibold">{n.message || n.type}</div>
+                        <div className="text-muted" style={{ fontSize: 12 }}>
+                          {n.type}{n.updatedAt ? ` • ${new Date(n.updatedAt).toLocaleString()}` : ''}
+                        </div>
+                      </ListGroup.Item>
+                    ))}
+                    {!workspaceActivity.length && <ListGroup.Item className="text-muted">{t('No recent activity.')}</ListGroup.Item>}
+                  </ListGroup>
+                </div>
+              </Card.Body>
+            </Card>
+
+            <Card className="card-plain">
+              <Card.Body>
+                <Card.Title>{t('Notifications')}</Card.Title>
+                <div className="overflow-y-auto" style={{ maxHeight: '420px' }}>
+                  <ListGroup variant="flush">
+                    {workspaceNotificationFeed.map((n) => (
+                      <ListGroup.Item key={n.id} className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <div className="fw-semibold">{n.message || n.type}</div>
+                          <div className="text-muted" style={{ fontSize: 12 }}>
+                            {n.type}
+                            {n.updatedAt ? ` • ${new Date(n.updatedAt).toLocaleString()}` : ''}
+                          </div>
+                        </div>
+                        <Badge bg={n.read ? 'secondary' : 'primary'} className="text-uppercase">
+                          {n.read ? t('Read') : t('New')}
+                        </Badge>
+                      </ListGroup.Item>
+                    ))}
+                    {!workspaceNotificationFeed.length && (
+                      <ListGroup.Item className="text-muted">{t('No notifications.')}</ListGroup.Item>
+                    )}
+                  </ListGroup>
+                </div>
+              </Card.Body>
+            </Card>
+          </div>
+        </section>
+
+        <section className="WorkspaceFooterLogoRow mt-4">
+          <div className="workspace-footer-logo-wrap">
+            <img src={workspaceFooterLogoSrc} alt={workspaceFooterLogoAlt} className="workspace-footer-logo" />
+          </div>
+        </section>
+      </>
+    );
+  };
 
   return (
     <div className="app-shell">
@@ -2800,16 +3727,16 @@ const App = () => {
               </div>
               <div className="workspace-sidebar-menu d-grid gap-2">
                 {showAdminDashboard && (
-                  <Button variant={primaryMenuKey === 'dashboard' ? 'primary' : 'outline-secondary'} size="sm" className="text-start">Dashboard</Button>
+                  <Button variant={primaryMenuKey === 'dashboard' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => openSidebarMainSection('dashboard')}>Dashboard</Button>
                 )}
                 {showPatientsMenu && (
-                  <Button variant={primaryMenuKey === 'patients' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => openExclusiveModal(() => setShowPatients(true))}>Patients</Button>
+                  <Button variant={primaryMenuKey === 'patients' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => openSidebarMainSection('patients')}>Patients</Button>
                 )}
                 {showAssignmentsMenu && (
-                  <Button variant={primaryMenuKey === 'assignments' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => openExclusiveModal(() => setShowAssignments(true))}>Assignments</Button>
+                  <Button variant={primaryMenuKey === 'assignments' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => openSidebarMainSection('assignments')}>Assignments</Button>
                 )}
                 {showAnalyticsMenu && (
-                  <Button variant={primaryMenuKey === 'analytics' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => requireAccess('analytics', () => openExclusiveModal(() => setShowAnalytics(true)))}>Analytics</Button>
+                  <Button variant={primaryMenuKey === 'analytics' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => requireAccess('analytics', () => openSidebarMainSection('analytics'))}>Analytics</Button>
                 )}
                 <Button variant="outline-secondary" size="sm" className="text-start" onClick={openPricing}>Pricing</Button>
                 <Button variant={primaryMenuKey === 'settings' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => openExclusiveModal(() => setShowSettings(true))}>Settings</Button>
@@ -2833,195 +3760,7 @@ const App = () => {
 
             <main className="workspace-main flex-1 overflow-y-auto">
               <div className="workspace-main-container max-w-[1440px] mx-auto px-6 py-6">
-                <section className="TopSummaryBand mb-4">
-                  <Card className="card-plain workspace-topbar mb-3">
-                    <Card.Body className="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                      <div>
-                        <div className="text-uppercase small text-muted fw-semibold">{t('Workspace')}</div>
-                        <div className="fw-bold fs-5">{getProductTitle(desiredProduct) || t('Workspace')}</div>
-                      </div>
-                      <div className="d-flex gap-2">
-                        <Button
-                          variant="outline-secondary"
-                          size="sm"
-                          onClick={() => {
-                            setActivePortal(null);
-                            setShowLogin(false);
-                            window.history.replaceState({}, '', '/');
-                          }}
-                        >
-                          {t('Change workspace')}
-                        </Button>
-                        {normalizeProductKey(desiredProduct) === 'telehealth' && (
-                          <Button
-                            variant="outline-secondary"
-                            size="sm"
-                            onClick={() => requireAccess('analytics', () => openExclusiveModal(() => setShowAnalytics(true)))}
-                          >
-                            {t('Analytics')}
-                          </Button>
-                        )}
-                        {user?.role === 'admin' && normalizeProductKey(desiredProduct) === 'telehealth' && (
-                          <Button
-                            variant="outline-primary"
-                            size="sm"
-                            onClick={() => {
-                              setUser((prev) => {
-                                const nextMode = String(prev?.viewMode || 'doctor').trim().toLowerCase() === 'doctor' ? 'nurse' : 'doctor';
-                                return { ...prev, viewMode: nextMode };
-                              });
-                            }}
-                          >
-                            {t('Change User View')}
-                          </Button>
-                        )}
-                      </div>
-                    </Card.Body>
-                  </Card>
-
-                  <Card className="card-plain workspace-metrics">
-                    <Card.Body>
-                      <div className="workspace-metrics-grid">
-                        {topSummaryMetrics.map((metric) => (
-                          <div key={metric.label} className="workspace-metric-item">
-                            <div className="workspace-metric-label">{t(metric.label)}</div>
-                            <div className="workspace-metric-value">{metric.value}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </Card.Body>
-                  </Card>
-                </section>
-
-                <section className="PrimaryActionsPanel mb-4">
-                  <Card className="card-plain">
-                    <Card.Body>
-                      <Card.Title className="mb-0">{t("Today's Actions")}</Card.Title>
-                      <div className="workspace-primary-actions mt-3">
-                        {renderQuickActions()}
-                      </div>
-                      {quickActionMessage && (
-                        <Alert
-                          variant={quickActionVariant}
-                          className="mt-3 mb-0"
-                          dismissible
-                          onClose={() => setQuickActionMessage('')}
-                        >
-                          {quickActionMessage}
-                        </Alert>
-                      )}
-                    </Card.Body>
-                  </Card>
-                </section>
-
-                <section className="WorkspaceGrid grid-desktop-2col">
-                  <div className="workspace-grid-left d-grid gap-3">
-                    {!isMyHealthWorkspace && (
-                      <Card className="card-plain">
-                        <Card.Body>
-                          <Card.Title>{t('Visit Queue')}</Card.Title>
-                          <div className="overflow-y-auto" style={{ maxHeight: '420px' }}>
-                            <ListGroup variant="flush">
-                              {workspaceVisitQueue.map((a) => (
-                                <ListGroup.Item key={a.id} className="d-flex justify-content-between align-items-center">
-                                  <div>
-                                    <div className="fw-semibold">{a.patientName || t('Patient')}</div>
-                                    <div className="text-muted" style={{ fontSize: 12 }}>
-                                      {a.type || t('Visit')} • {a.startAt ? new Date(a.startAt).toLocaleString() : t('TBD')}
-                                    </div>
-                                  </div>
-                                  <Badge bg="secondary" className="text-uppercase">{a.status || t('scheduled')}</Badge>
-                                </ListGroup.Item>
-                              ))}
-                              {!workspaceVisitQueue.length && <ListGroup.Item className="text-muted">{t('No upcoming visits.')}</ListGroup.Item>}
-                            </ListGroup>
-                          </div>
-                        </Card.Body>
-                      </Card>
-                    )}
-
-                    <Card className="card-plain">
-                      <Card.Body>
-                        <Card.Title>{t('Appointments')}</Card.Title>
-                        <div className="overflow-x-auto">
-                          <ListGroup variant="flush">
-                            {(clinicData.appointments || []).slice(0, 12).map((appt, idx) => (
-                              <ListGroup.Item key={appt?.id || `${appt?.patientId || 'appt'}_${idx}`} className="d-flex justify-content-between align-items-center">
-                                <div>
-                                  <div className="fw-semibold">{appt?.patientName || t('Patient')}</div>
-                                  <div className="text-muted" style={{ fontSize: 12 }}>{appt?.type || t('Appointment')}</div>
-                                </div>
-                                <div className="text-muted" style={{ fontSize: 12 }}>{appt?.startAt ? new Date(appt.startAt).toLocaleString() : t('TBD')}</div>
-                              </ListGroup.Item>
-                            ))}
-                            {!(clinicData.appointments || []).length && <ListGroup.Item className="text-muted">{t('No appointments.')}</ListGroup.Item>}
-                          </ListGroup>
-                        </div>
-                      </Card.Body>
-                    </Card>
-
-                    <Card className="card-plain">
-                      <Card.Body>
-                        <Card.Title>{t('Care Snapshot')}</Card.Title>
-                        {renderDashboard()}
-                      </Card.Body>
-                    </Card>
-                  </div>
-
-                  <div className="workspace-grid-right d-grid gap-3">
-                    <Card className="card-plain">
-                      <Card.Body>
-                        <Card.Title>{t('Activity')}</Card.Title>
-                        <div className="overflow-y-auto" style={{ maxHeight: '420px' }}>
-                          <ListGroup variant="flush">
-                            {workspaceActivity.map((n) => (
-                              <ListGroup.Item key={n.id}>
-                                <div className="fw-semibold">{n.message || n.type}</div>
-                                <div className="text-muted" style={{ fontSize: 12 }}>
-                                  {n.type}{n.updatedAt ? ` • ${new Date(n.updatedAt).toLocaleString()}` : ''}
-                                </div>
-                              </ListGroup.Item>
-                            ))}
-                            {!workspaceActivity.length && <ListGroup.Item className="text-muted">{t('No recent activity.')}</ListGroup.Item>}
-                          </ListGroup>
-                        </div>
-                      </Card.Body>
-                    </Card>
-
-                    <Card className="card-plain">
-                      <Card.Body>
-                        <Card.Title>{t('Notifications')}</Card.Title>
-                        <div className="overflow-y-auto" style={{ maxHeight: '420px' }}>
-                          <ListGroup variant="flush">
-                            {workspaceNotificationFeed.map((n) => (
-                              <ListGroup.Item key={n.id} className="d-flex justify-content-between align-items-center">
-                                <div>
-                                  <div className="fw-semibold">{n.message || n.type}</div>
-                                  <div className="text-muted" style={{ fontSize: 12 }}>
-                                    {n.type}
-                                    {n.updatedAt ? ` • ${new Date(n.updatedAt).toLocaleString()}` : ''}
-                                  </div>
-                                </div>
-                                <Badge bg={n.read ? 'secondary' : 'primary'} className="text-uppercase">
-                                  {n.read ? t('Read') : t('New')}
-                                </Badge>
-                              </ListGroup.Item>
-                            ))}
-                            {!workspaceNotificationFeed.length && (
-                              <ListGroup.Item className="text-muted">{t('No notifications.')}</ListGroup.Item>
-                            )}
-                          </ListGroup>
-                        </div>
-                      </Card.Body>
-                    </Card>
-                  </div>
-                </section>
-
-                <section className="WorkspaceFooterLogoRow mt-4">
-                  <div className="workspace-footer-logo-wrap">
-                    <img src={workspaceFooterLogoSrc} alt={workspaceFooterLogoAlt} className="workspace-footer-logo" />
-                  </div>
-                </section>
+                {renderWorkspaceMainPanel()}
               </div>
             </main>
           </div>

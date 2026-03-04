@@ -201,6 +201,7 @@ const DonutChart = ({ items = [] }) => {
 const AnalyticsDashboard = ({
   show,
   onHide,
+  inline = false,
   appointments = [],
   labs = [],
   t = (s) => s,
@@ -322,12 +323,8 @@ const AnalyticsDashboard = ({
 
   const titleSuffix = `${timeRange.toUpperCase()} · ${department} · ${role}`;
 
-  return (
-    <Modal show={show} onHide={onHide} size="xl" centered scrollable>
-      <Modal.Header closeButton>
-        <Modal.Title>{t('Analytics')} — {titleSuffix}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
+  const dashboardContent = (
+    <>
         <Row className="g-3 mb-3">
           <Col md={4}>
             <Form.Group>
@@ -389,6 +386,30 @@ const AnalyticsDashboard = ({
         <div className="text-muted mt-3" style={{ fontSize: 12 }}>
           {t('Operational analytics uses appointments/labs only (no patient medical record data).')}
         </div>
+    </>
+  );
+
+  if (inline) {
+    return (
+      <Card className="card-plain">
+        <Card.Body>
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <div className="fw-semibold">{t('Analytics')} — {titleSuffix}</div>
+            {onHide && <Button variant="outline-secondary" size="sm" onClick={onHide}>{t('Close')}</Button>}
+          </div>
+          {dashboardContent}
+        </Card.Body>
+      </Card>
+    );
+  }
+
+  return (
+    <Modal show={show} onHide={onHide} size="xl" centered scrollable>
+      <Modal.Header closeButton>
+        <Modal.Title>{t('Analytics')} — {titleSuffix}</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        {dashboardContent}
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>{t('Close')}</Button>

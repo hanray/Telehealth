@@ -72,6 +72,7 @@ const buildPatientForSave = ({ existing, draft, allowClinicalFields }) => {
 const PatientsModule = ({
   show,
   onHide,
+  inline = false,
   currentUser,
   patients = [],
   providers = [],
@@ -235,23 +236,15 @@ const PatientsModule = ({
     return p?.name || id;
   };
 
-  return (
+  const moduleContent = (
     <>
-      <Modal show={show} onHide={resetAndClose} centered size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {t('Patients')}
-            {role === 'doctor' && <span className="text-muted" style={{ fontSize: 12 }}> {t('(view)')}</span>}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {role === 'psw' && typeof assignedToPswCount === 'number' && (
-            <Alert variant="light" className="border">
-              {t('Open homecare tasks')}: <strong>{assignedToPswCount}</strong>
-            </Alert>
-          )}
+      {role === 'psw' && typeof assignedToPswCount === 'number' && (
+        <Alert variant="light" className="border">
+          {t('Open homecare tasks')}: <strong>{assignedToPswCount}</strong>
+        </Alert>
+      )}
 
-          <Row className="g-3">
+      <Row className="g-3">
             <Col md={5}>
               <Card className="card-plain">
                 <Card.Body>
@@ -501,11 +494,40 @@ const PatientsModule = ({
               )}
             </Col>
           </Row>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="outline-secondary" onClick={resetAndClose}>{t('Close')}</Button>
-        </Modal.Footer>
-      </Modal>
+    </>
+  );
+
+  return (
+    <>
+      {inline ? (
+        <Card className="card-plain">
+          <Card.Body>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <div className="fw-semibold">
+                {t('Patients')}
+                {role === 'doctor' && <span className="text-muted" style={{ fontSize: 12 }}> {t('(view)')}</span>}
+              </div>
+              <Button variant="outline-secondary" size="sm" onClick={resetAndClose}>{t('Close')}</Button>
+            </div>
+            {moduleContent}
+          </Card.Body>
+        </Card>
+      ) : (
+        <Modal show={show} onHide={resetAndClose} centered size="lg">
+          <Modal.Header closeButton>
+            <Modal.Title>
+              {t('Patients')}
+              {role === 'doctor' && <span className="text-muted" style={{ fontSize: 12 }}> {t('(view)')}</span>}
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {moduleContent}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="outline-secondary" onClick={resetAndClose}>{t('Close')}</Button>
+          </Modal.Footer>
+        </Modal>
+      )}
 
       <Modal show={taskModal} onHide={() => setTaskModal(false)} centered>
         <Modal.Header closeButton>

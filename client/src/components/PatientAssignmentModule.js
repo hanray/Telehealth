@@ -20,6 +20,7 @@ import {
 const PatientAssignmentModule = ({
   show,
   onHide,
+  inline = false,
   currentUser,
   onAssignmentUpdate,
   onViewDetails,
@@ -679,13 +680,8 @@ const PatientAssignmentModule = ({
   const filteredUnassigned = useMemo(() => filterPatients(unassignedPatients), [filterPatients, unassignedPatients]);
   const filteredAllAssigned = useMemo(() => filterPatients(allAssignedPatients), [filterPatients, allAssignedPatients]);
 
-  return (
+  const assignmentContent = (
     <>
-      <Modal show={show} onHide={onHide} size="xl" fullscreen="lg-down">
-        <Modal.Header closeButton>
-          <Modal.Title>👥 Patient Assignment & Management</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
           {alertMessage && (
             <Alert variant={alertVariant} dismissible onClose={() => setAlertMessage('')}>
               {alertMessage}
@@ -1221,13 +1217,36 @@ const PatientAssignmentModule = ({
               </Row>
             </Tab>
           </Tabs>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onHide}>
-            Close
-          </Button>
-        </Modal.Footer>
-      </Modal>
+    </>
+  );
+
+  return (
+    <>
+      {inline ? (
+        <Card className="card-plain">
+          <Card.Body>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <div className="fw-semibold">👥 Patient Assignment & Management</div>
+              <Button variant="outline-secondary" size="sm" onClick={onHide}>Close</Button>
+            </div>
+            {assignmentContent}
+          </Card.Body>
+        </Card>
+      ) : (
+        <Modal show={show} onHide={onHide} size="xl" fullscreen="lg-down">
+          <Modal.Header closeButton>
+            <Modal.Title>👥 Patient Assignment & Management</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {assignmentContent}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={onHide}>
+              Close
+            </Button>
+          </Modal.Footer>
+        </Modal>
+      )}
 
       <Modal show={showIntakeForm} onHide={() => setShowIntakeForm(false)} size="lg" backdrop="static">
         <Modal.Header closeButton>
