@@ -1779,11 +1779,11 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    if (!showSettings || !user) return;
+    if ((!showSettings && workspaceMainSection !== 'settings') || !user) return;
     const code = normalizeCountryCode(user?.countryOfOrigin?.countryCode || user?.country || 'US');
     setProfileCountryCode(code);
     setProfileCountryOtherText(user?.countryOfOrigin?.countryOtherText || '');
-  }, [showSettings, user]);
+  }, [showSettings, workspaceMainSection, user]);
 
   useEffect(() => {
     if (!showSubscriptionSettings || !user) return;
@@ -3735,6 +3735,104 @@ const App = () => {
   const workspaceFooterLogoAlt = workspaceKey === 'myhealth' ? 'My HomeCare Online' : 'WHS Foundation';
   const showCareTeamModeLabel = workspaceKey === 'homecare' && !['doctor', 'nurse'].includes(userRole);
 
+  const renderSettingsPanel = ({ inline = false } = {}) => {
+    const closeSettingsPanel = () => {
+      if (inline) {
+        setWorkspaceMainSection('dashboard');
+        setShowSettings(false);
+        return;
+      }
+      closeExclusiveModal();
+    };
+
+    return (
+      <>
+        <div className="mb-3">
+          <div className="fw-semibold">{t('Profile')}</div>
+          <div className="text-muted" style={{ fontSize: 13 }}>
+            {t('Country of origin is used for reporting.')}
+          </div>
+        </div>
+
+        <Form.Group className="mb-2">
+          <Form.Label>{t('Country')}</Form.Label>
+          <Form.Select
+            value={profileCountryCode}
+            onChange={(e) => {
+              const next = normalizeCountryCode(e.target.value);
+              setProfileCountryCode(next);
+              if (!isOtherCountry(next)) setProfileCountryOtherText('');
+            }}
+          >
+            {countryOptions.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.label}
+              </option>
+            ))}
+          </Form.Select>
+        </Form.Group>
+
+        {isOtherCountry(profileCountryCode) && (
+          <Form.Group className="mb-2">
+            <Form.Label>{t('Specify country')}</Form.Label>
+            <Form.Control
+              value={profileCountryOtherText}
+              onChange={(e) => setProfileCountryOtherText(e.target.value)}
+              minLength={2}
+              maxLength={64}
+              placeholder={t('Enter your country')}
+            />
+          </Form.Group>
+        )}
+
+        <div className="d-grid mb-3">
+          <Button
+            variant="primary"
+            disabled={profileSaving}
+            onClick={async () => {
+              try {
+                setProfileSaving(true);
+                await saveCountryOfOrigin({
+                  countryCode: profileCountryCode,
+                  countryOtherText: profileCountryOtherText,
+                  countrySource: 'profile',
+                });
+                closeSettingsPanel();
+              } catch (err) {
+                setAuthError(err.message || 'Failed to save profile');
+              } finally {
+                setProfileSaving(false);
+              }
+            }}
+          >
+            {profileSaving ? t('Saving…') : t('Save')}
+          </Button>
+        </div>
+
+        <hr />
+
+        <div className="mb-2">
+          <div className="fw-semibold">API</div>
+          <div className="text-muted">{DISPLAY_API_BASE}</div>
+        </div>
+
+        <div className="d-grid gap-2">
+          {user?.role === 'admin' && (
+            <Button variant="outline-primary" onClick={() => { refreshStore(); closeSettingsPanel(); }}>
+              Refresh local data
+            </Button>
+          )}
+          <Button variant="outline-secondary" onClick={() => { openExclusiveModal(() => setShowSubscriptionSettings(true)); }}>
+            Subscription Settings
+          </Button>
+          <Button variant="link" className="text-start ps-0" onClick={() => { setActivePortal(null); closeSettingsPanel(); }}>
+            Change portal
+          </Button>
+        </div>
+      </>
+    );
+  };
+
   const renderWorkspaceMainPanel = () => {
     if (workspaceMainSection === 'patients') {
       return (
@@ -3797,6 +3895,20 @@ const App = () => {
           labs={clinicData.labs}
           t={t}
         />
+      );
+    }
+
+    if (workspaceMainSection === 'settings') {
+      return (
+        <Card className="card-plain">
+          <Card.Body>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <div className="fw-semibold">{user?.role === 'admin' ? 'Admin Tools' : t('Settings')}</div>
+              <Button variant="outline-secondary" size="sm" onClick={() => setWorkspaceMainSection('dashboard')}>{t('Close')}</Button>
+            </div>
+            {renderSettingsPanel({ inline: true })}
+          </Card.Body>
+        </Card>
       );
     }
 
@@ -4037,7 +4149,7 @@ const App = () => {
                   <Button variant={primaryMenuKey === 'analytics' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => requireAccess('analytics', () => openSidebarMainSection('analytics'))}>Analytics</Button>
                 )}
                 <Button variant="outline-secondary" size="sm" className="text-start" onClick={openPricing}>Pricing</Button>
-                <Button variant={primaryMenuKey === 'settings' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => openExclusiveModal(() => setShowSettings(true))}>Settings</Button>
+                <Button variant={primaryMenuKey === 'settings' ? 'primary' : 'outline-secondary'} size="sm" className="text-start" onClick={() => openSidebarMainSection('settings')}>Settings</Button>
                 <Button variant="outline-danger" size="sm" className="text-start" onClick={handleLogout}>Logout</Button>
                 <div className="workspace-sidebar-language workspace-sidebar-language-after-logout">
                   <Form.Select
@@ -4626,88 +4738,7 @@ const App = () => {
             <Modal.Title>{user?.role === 'admin' ? 'Admin Tools' : t('Settings')}</Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            <div className="mb-3">
-              <div className="fw-semibold">{t('Profile')}</div>
-              <div className="text-muted" style={{ fontSize: 13 }}>
-                {t('Country of origin is used for reporting.')}
-              </div>
-            </div>
-
-            <Form.Group className="mb-2">
-              <Form.Label>{t('Country')}</Form.Label>
-              <Form.Select
-                value={profileCountryCode}
-                onChange={(e) => {
-                  const next = normalizeCountryCode(e.target.value);
-                  setProfileCountryCode(next);
-                  if (!isOtherCountry(next)) setProfileCountryOtherText('');
-                }}
-              >
-                {countryOptions.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.label}
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-
-            {isOtherCountry(profileCountryCode) && (
-              <Form.Group className="mb-2">
-                <Form.Label>{t('Specify country')}</Form.Label>
-                <Form.Control
-                  value={profileCountryOtherText}
-                  onChange={(e) => setProfileCountryOtherText(e.target.value)}
-                  minLength={2}
-                  maxLength={64}
-                  placeholder={t('Enter your country')}
-                />
-              </Form.Group>
-            )}
-
-            <div className="d-grid mb-3">
-              <Button
-                variant="primary"
-                disabled={profileSaving}
-                onClick={async () => {
-                  try {
-                    setProfileSaving(true);
-                    await saveCountryOfOrigin({
-                      countryCode: profileCountryCode,
-                      countryOtherText: profileCountryOtherText,
-                      countrySource: 'profile',
-                    });
-                    closeExclusiveModal();
-                  } catch (err) {
-                    setAuthError(err.message || 'Failed to save profile');
-                  } finally {
-                    setProfileSaving(false);
-                  }
-                }}
-              >
-                {profileSaving ? t('Saving…') : t('Save')}
-              </Button>
-            </div>
-
-            <hr />
-
-            <div className="mb-2">
-              <div className="fw-semibold">API</div>
-              <div className="text-muted">{DISPLAY_API_BASE}</div>
-            </div>
-
-            <div className="d-grid gap-2">
-              {user?.role === 'admin' && (
-                <Button variant="outline-primary" onClick={() => { refreshStore(); closeExclusiveModal(); }}>
-                  Refresh local data
-                </Button>
-              )}
-              <Button variant="outline-secondary" onClick={() => { openExclusiveModal(() => setShowSubscriptionSettings(true)); }}>
-                Subscription Settings
-              </Button>
-              <Button variant="link" className="text-start ps-0" onClick={() => { setActivePortal(null); closeExclusiveModal(); }}>
-                Change portal
-              </Button>
-            </div>
+            {renderSettingsPanel()}
           </Modal.Body>
         </Modal>
       )}
